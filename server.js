@@ -86,7 +86,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// 改善された投稿スキーマ
+// 改善された投稿スキーマ（投稿日指定対応）
 const postSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   user: String,
@@ -102,7 +102,8 @@ const postSchema = new mongoose.Schema({
   reps: Number,
   image: String, // 画像URL
   comment: String,
-  timestamp: { type: Date, default: Date.now },
+  workoutDate: { type: Date }, // トレーニングを実際に行った日
+  timestamp: { type: Date, default: Date.now }, // 投稿した日時
   likes: { type: Number, default: 0 },
   likedBy: { type: [String], default: [] },
   comments: { type: Number, default: 0 }
@@ -112,40 +113,90 @@ const Post = mongoose.model('Post', postSchema);
 
 // 初回アクセス時のサンプルデータ作成
 async function createSampleData() {
-  const userCount = await User.countDocuments();
-  const postCount = await Post.countDocuments();
-  
-  if (userCount === 0 && postCount === 0) {
-    // サンプルユーザー作成
-    const sampleUser = new User({
-      email: 'sample@fitshare.com',
-      password: await bcrypt.hash('sample123', 10),
-      username: 'FitShare運営',
-      avatar: '💪'
-    });
-    await sampleUser.save();
+  try {
+    const userCount = await User.countDocuments();
+    const postCount = await Post.countDocuments();
     
-    // サンプル投稿作成
-    const samplePost = new Post({
-      userId: sampleUser._id,
-      user: sampleUser.username,
-      avatar: sampleUser.avatar,
-      exercise: 'ベンチプレス',
-      sets: [
-        { weight: 60, reps: 10 },
-        { weight: 60, reps: 8 },
-        { weight: 55, reps: 10 }
-      ],
-      comment: 'FitShareへようこそ！セットごとに重量と回数を記録できます💪',
-      likes: 1,
-      likedBy: [sampleUser._id.toString()],
-      comments: 0
-    });
-    await samplePost.save();
+    if (userCount === 0 && postCount === 0) {
+      // サンプルユーザー作成
+      const sampleUser = new User({
+        email: 'sample@fitshare.com',
+        password: await bcrypt.hash('sample123', 10),
+        username: 'FitShare運営',
+        avatar: '💪'
+      });
+      await sampleUser.save();
+      
+      // サンプル投稿作成（過去の日付も含む）
+      const samplePosts = [
+        {
+          userId: sampleUser._id,
+          user: sampleUser.username,
+          avatar: sampleUser.avatar,
+          exercise: 'ベンチプレス',
+          sets: [
+            { weight: 60, reps: 10 },
+            { weight: 60, reps: 8 },
+            { weight: 55, reps: 10 }
+          ],
+          comment: 'FitShareへようこそ！セットごとに重量と回数を記録できます💪',
+          workoutDate: new Date(),
+          likes: 1,
+          likedBy: [sampleUser._id.toString()],
+          comments: 0
+        },
+        {
+          userId: sampleUser._id,
+          user: sampleUser.username,
+          avatar: sampleUser.avatar,
+          exercise: 'スクワット',
+          sets: [
+            { weight: 80, reps: 12 },
+            { weight: 80, reps: 10 },
+            { weight: 75, reps: 12 }
+          ],
+          comment: '昨日のトレーニングを記録しました！',
+          workoutDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 昨日
+          likes: 0,
+          likedBy: [],
+          comments: 0
+        },
+        {
+          userId: sampleUser._id,
+          user: sampleUser.username,
+          avatar: sampleUser.avatar,
+          exercise: 'デッドリフト',
+          sets: [
+            { weight: 100, reps: 5 },
+            { weight: 95, reps: 6 },
+            { weight: 90, reps: 8 }
+          ],
+          comment: '一週間前のデッドリフト記録です',
+          workoutDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1週間前
+          likes: 2,
+          likedBy: [],
+          comments: 0
+        }
+      ];
+
+      for (const postData of samplePosts) {
+        const post = new Post(postData);
+        await post.save();
+      }
+      
+      console.log('サンプルデータを作成しました');
+    }
+  } catch (error) {
+    console.error('サンプルデータ作成エラー:', error);
   }
 }
 
-createSampleData();
+// MongoDB接続後にサンプルデータを作成
+if (MONGODB_URI) {
+  mongoose.connection.once('open', () => {
+    createSampleData();
+  });
+}
 
 // 認証ミドルウェア
 const authenticateToken = (req, res, next) => {
@@ -252,19 +303,20 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 全投稿を取得
+// 全投稿を取得（workoutDate順にソート）
 app.get('/api/posts', async (req, res) => {
   try {
     const posts = await Post.find()
       .populate('userId', 'username avatar')
-      .sort({ timestamp: -1 });
+      .sort({ workoutDate: -1, timestamp: -1 }); // workoutDateを優先してソート
     res.json(posts);
   } catch (error) {
+    console.error('投稿取得エラー:', error);
     res.status(500).json({ error: 'データの取得に失敗しました' });
   }
 });
 
-// 新規投稿（認証必要）
+// 新規投稿（認証必要 + 投稿日指定対応）
 app.post('/api/posts', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -282,7 +334,18 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     
     // セットデータの処理
     if (req.body.sets) {
-      postData.sets = JSON.parse(req.body.sets);
+      try {
+        postData.sets = JSON.parse(req.body.sets);
+      } catch (error) {
+        return res.status(400).json({ error: 'セットデータの形式が正しくありません' });
+      }
+    }
+    
+    // 投稿日（トレーニング実施日）の処理
+    if (req.body.workoutDate) {
+      postData.workoutDate = new Date(req.body.workoutDate);
+    } else {
+      postData.workoutDate = new Date(); // デフォルトは今日
     }
     
     // 画像がある場合
@@ -304,7 +367,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
   }
 });
 
-// 投稿の更新（認証必要）
+// 投稿の更新（認証必要 + 投稿日更新対応）
 app.put('/api/posts/:id', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -322,6 +385,7 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
     if (req.body.exercise) post.exercise = req.body.exercise;
     if (req.body.sets) post.sets = req.body.sets;
     if (req.body.comment !== undefined) post.comment = req.body.comment;
+    if (req.body.workoutDate) post.workoutDate = new Date(req.body.workoutDate);
     
     await post.save();
     await post.populate('userId', 'username avatar');
@@ -352,7 +416,11 @@ app.delete('/api/posts/:id', authenticateToken, async (req, res) => {
     if (post.image) {
       const imagePath = path.join(__dirname, post.image);
       if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (error) {
+          console.error('画像削除エラー:', error);
+        }
       }
     }
     
@@ -397,25 +465,117 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
   }
 });
 
+// ユーザーの統計データを取得するAPI
+app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // 投稿者本人のみアクセス可能
+    if (userId !== req.user.userId) {
+      return res.status(403).json({ error: '権限がありません' });
+    }
+    
+    const posts = await Post.find({ userId });
+    
+    // 最大重量を計算
+    const maxWeights = {};
+    posts.forEach(post => {
+      if (post.sets && Array.isArray(post.sets)) {
+        post.sets.forEach(set => {
+          const weight = parseFloat(set.weight);
+          if (weight && (!maxWeights[post.exercise] || weight > maxWeights[post.exercise])) {
+            maxWeights[post.exercise] = weight;
+          }
+        });
+      } else if (post.weight) {
+        const weight = parseFloat(post.weight);
+        if (weight && (!maxWeights[post.exercise] || weight > maxWeights[post.exercise])) {
+          maxWeights[post.exercise] = weight;
+        }
+      }
+    });
+    
+    // 総トレーニング日数
+    const uniqueDays = new Set(posts.map(post => 
+      new Date(post.workoutDate || post.timestamp).toDateString()
+    )).size;
+    
+    // 種目別の回数
+    const exerciseCount = {};
+    posts.forEach(post => {
+      exerciseCount[post.exercise] = (exerciseCount[post.exercise] || 0) + 1;
+    });
+    
+    res.json({
+      maxWeights,
+      totalDays: uniqueDays,
+      totalPosts: posts.length,
+      exerciseCount
+    });
+  } catch (error) {
+    console.error('統計データ取得エラー:', error);
+    res.status(500).json({ error: '統計データの取得に失敗しました' });
+  }
+});
+
+// ユーザーの投稿一覧を取得するAPI
+app.get('/api/users/:userId/posts', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const posts = await Post.find({ userId })
+      .populate('userId', 'username avatar')
+      .sort({ workoutDate: -1, timestamp: -1 });
+    
+    res.json(posts);
+  } catch (error) {
+    console.error('ユーザー投稿取得エラー:', error);
+    res.status(500).json({ error: 'ユーザーの投稿取得に失敗しました' });
+  }
+});
+
+// エラーハンドリングミドルウェア
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'ファイルサイズが大きすぎます（5MB以下にしてください）' });
+    }
+  }
+  console.error('サーバーエラー:', error);
+  res.status(500).json({ error: '内部サーバーエラーが発生しました' });
+});
+
 // Socket.io接続
 io.on('connection', async (socket) => {
-  console.log('新しいユーザーが接続しました');
+  console.log('新しいユーザーが接続しました:', socket.id);
   
   try {
     const posts = await Post.find()
       .populate('userId', 'username avatar')
-      .sort({ timestamp: -1 });
+      .sort({ workoutDate: -1, timestamp: -1 });
     socket.emit('allPosts', posts);
   } catch (error) {
     console.error('投稿の取得エラー:', error);
   }
   
   socket.on('disconnect', () => {
-    console.log('ユーザーが切断しました');
+    console.log('ユーザーが切断しました:', socket.id);
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
   });
 });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`サーバーがポート${PORT}で起動しました`);
+  console.log(`アプリケーションURL: http://localhost:${PORT}`);
 });
