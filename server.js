@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
+require('dotenv').config(); // dotenvを読み込み
 
 const app = express();
 const server = http.createServer(app);
@@ -23,7 +24,7 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
-// JWT秘密鍵（本番環境では環境変数を使用）
+// JWT秘密鍵（環境変数から取得）
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
 // ファイルアップロード設定
@@ -57,10 +58,22 @@ const upload = multer({
 });
 
 // MongoDB接続
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fitshare';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('MongoDBに接続しました'))
-  .catch(err => console.error('MongoDB接続エラー:', err));
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('警告: MONGODB_URIが設定されていません。.envファイルを確認してください。');
+  console.log('ローカルモードで起動します（データは保存されません）');
+}
+
+// MongoDB接続（エラー時はローカルモードで動作）
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('MongoDBに接続しました'))
+    .catch(err => {
+      console.error('MongoDB接続エラー:', err.message);
+      console.log('ローカルモードで起動します（データは保存されません）');
+    });
+}
 
 // ユーザースキーマ
 const userSchema = new mongoose.Schema({
