@@ -223,6 +223,13 @@ const FitShareApp = () => {
       return;
     }
 
+    // トークンの有効性をチェック
+    if (!authToken) {
+      console.error('認証トークンがありません');
+      setShowAuthForm(true);
+      return;
+    }
+
     const validExercises = formData.exercises
       .filter(e => e.exercise.trim() !== '' && e.sets.some(s => s.weight && s.reps))
       .map(e => ({
@@ -269,7 +276,24 @@ const FitShareApp = () => {
         });
       }
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('API Error:', res.status, errorText);
+        
+        // 認証エラーの場合は再ログインを促す
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        
+        throw new Error(errorText);
+      }
 
       let createdPost;
       try {
@@ -332,7 +356,24 @@ const FitShareApp = () => {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Update API Error:', res.status, errorText);
+        
+        // 認証エラーの場合は再ログインを促す
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        
+        throw new Error(errorText);
+      }
 
       let updatedPost;
       try {
@@ -381,10 +422,24 @@ const FitShareApp = () => {
     }
 
     try {
-      await fetch(`${SERVER_URL}/api/posts/${postId}/like`, {
+      const res = await fetch(`${SERVER_URL}/api/posts/${postId}/like`, {
         method: "POST",
         headers: getHeaders(),
       });
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
     } catch (error) {
       console.error("いいねの送信に失敗しました:", error);
     }
@@ -422,6 +477,16 @@ const FitShareApp = () => {
         });
 
         if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            console.log('認証エラーが発生しました。再ログインが必要です。');
+            localStorage.removeItem('fitShareToken');
+            localStorage.removeItem('fitShareUser');
+            setAuthToken('');
+            setCurrentUser(null);
+            setShowAuthForm(true);
+            alert('セッションが切れました。再度ログインしてください。');
+            return;
+          }
           alert("削除に失敗しました");
         }
       } catch (error) {
