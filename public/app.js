@@ -674,6 +674,22 @@ const FitShareApp = () => {
                 "div",
                 { className: "flex items-center space-x-2" },
                 React.createElement(
+                  "button",
+                  {
+                    onClick: () => setCurrentView("home"),
+                    className: `px-3 py-1 rounded text-sm ${currentView === "home" ? "bg-white text-blue-600" : "text-white hover:bg-blue-500"}`,
+                  },
+                  "ホーム"
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    onClick: () => setCurrentView("profile"),
+                    className: `px-3 py-1 rounded text-sm ${currentView === "profile" ? "bg-white text-blue-600" : "text-white hover:bg-blue-500"}`,
+                  },
+                  "プロフィール"
+                ),
+                React.createElement(
                   "div",
                   { className: "text-sm" },
                   "👤 ",
@@ -711,7 +727,23 @@ const FitShareApp = () => {
       "main",
       { className: "px-4 py-4" },
       
-      // 投稿ボタン
+      // ビューの切り替え
+      currentView === "profile" && currentUser
+        ? React.createElement(ProfilePage, {
+            currentUser,
+            posts,
+            onImageClick: setModalImage,
+            onEdit: handleEdit,
+            onDelete: handleDelete,
+            onLike: handleLike,
+            connected
+          })
+        : React.createElement(
+            React.Fragment,
+            null,
+            // ホーム画面のコンテンツ
+            
+            // 投稿ボタン
       React.createElement(
         "button",
         {
@@ -788,16 +820,17 @@ const FitShareApp = () => {
           onDeleteCustomExercise: deleteCustomExercise
         }),
 
-      // 投稿一覧
-      React.createElement(PostList, {
-        posts,
-        currentUser,
-        connected,
-        onLike: handleLike,
-        onEdit: handleEdit,
-        onDelete: handleDelete,
-        onImageClick: setModalImage
-      })
+            // 投稿一覧
+            React.createElement(PostList, {
+              posts,
+              currentUser,
+              connected,
+              onLike: handleLike,
+              onEdit: handleEdit,
+              onDelete: handleDelete,
+              onImageClick: setModalImage
+            })
+          )
     )
   );
 };
