@@ -295,14 +295,13 @@ const FitShareApp = () => {
         throw new Error(errorText);
       }
 
+      // 投稿成功時のレスポンスを受信（Socket.ioで自動追加されるため手動追加は不要）
       let createdPost;
       try {
         createdPost = await res.json();
+        console.log('投稿が正常に作成されました:', createdPost._id);
       } catch {
-        createdPost = null;
-      }
-      if (createdPost) {
-        setPosts(prev => [createdPost, ...prev]);
+        console.log('投稿レスポンスの解析に失敗しましたが、投稿は成功しました');
       }
 
       setFormData({
@@ -375,20 +374,13 @@ const FitShareApp = () => {
         throw new Error(errorText);
       }
 
+      // 更新成功時のレスポンスを受信（Socket.ioで自動更新されるため手動更新は不要）
       let updatedPost;
       try {
         updatedPost = await res.json();
+        console.log('投稿が正常に更新されました:', updatedPost._id);
       } catch {
-        updatedPost = null;
-      }
-      if (updatedPost) {
-        setPosts(prev =>
-          prev.map(post =>
-            (post._id || post.id) === (editingPost._id || editingPost.id)
-              ? updatedPost
-              : post
-          )
-        );
+        console.log('更新レスポンスの解析に失敗しましたが、更新は成功しました');
       }
 
       setFormData({
@@ -477,6 +469,7 @@ const FitShareApp = () => {
         });
 
         if (!response.ok) {
+          console.error('削除API Error:', response.status, await response.text());
           if (response.status === 401 || response.status === 403) {
             console.log('認証エラーが発生しました。再ログインが必要です。');
             localStorage.removeItem('fitShareToken');
@@ -488,6 +481,8 @@ const FitShareApp = () => {
             return;
           }
           alert("削除に失敗しました");
+        } else {
+          console.log('投稿が正常に削除されました:', postId);
         }
       } catch (error) {
         alert("削除に失敗しました");
