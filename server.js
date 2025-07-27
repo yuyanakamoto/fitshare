@@ -8,36 +8,76 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
-require('dotenv').config(); // dotenvを読み込み
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"]
+    origin: process.env.CLIENT_URL || "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
-app.use(cors());
-app.use(express.json());
+// セキュリティミドルウェア
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdn.tailwindcss.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "ws:", "wss:"]
+    }
+  }
+}));
+
+// レート制限
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分
+  max: 100 // リクエスト数
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5 // 認証試行回数
+});
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || true,
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(mongoSanitize()); // NoSQLインジェクション対策
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
 // JWT秘密鍵（環境変数から取得）
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('エラー: JWT_SECRETが設定されていません。.envファイルを確認してください。');
+  process.exit(1);
+}
 
 // ファイルアップロード設定
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (!fs.existsSync('uploads')) {
-      fs.mkdirSync('uploads');
+    const uploadDir = 'uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
+    cb(null, uniqueSuffix + '-' + sanitizedFilename);
   }
 });
 
@@ -45,14 +85,14 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB制限
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('画像ファイルのみアップロード可能です'));
+      cb(new Error('画像ファイル（JPEG, PNG, GIF, WebP）のみアップロード可能です'));
     }
   }
 });
@@ -65,9 +105,15 @@ if (!MONGODB_URI) {
   console.log('ローカルモードで起動します（データは保存されません）');
 }
 
+// MongoDB接続オプション
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+
 // MongoDB接続（エラー時はローカルモードで動作）
 if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI)
+  mongoose.connect(MONGODB_URI, mongooseOptions)
     .then(() => console.log('MongoDBに接続しました'))
     .catch(err => {
       console.error('MongoDB接続エラー:', err.message);
@@ -75,39 +121,123 @@ if (MONGODB_URI) {
     });
 }
 
-// ユーザースキーマ
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  username: { type: String, required: true },
-  avatar: { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now }
+// 接続エラーハンドリング
+mongoose.connection.on('error', err => {
+  console.error('MongoDB接続エラー:', err);
 });
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDBから切断されました');
+});
+
+// ユーザースキーマ（改善版）
+const userSchema = new mongoose.Schema({
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, '有効なメールアドレスを入力してください']
+  },
+  password: { 
+    type: String, 
+    required: true,
+    minlength: 6
+  },
+  username: { 
+    type: String, 
+    required: true,
+    trim: true,
+    maxlength: 20
+  },
+  avatar: { 
+    type: String, 
+    default: '' 
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// インデックスの作成（emailは既にuniqueでインデックスが作成される）
+userSchema.index({ username: 1 });
 
 const User = mongoose.model('User', userSchema);
 
-// 改善された投稿スキーマ（投稿日指定対応）
+// 投稿スキーマ（改善版）
 const postSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true,
+    index: true
+  },
   user: String,
   avatar: String,
+  exercises: [{
+    exercise: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    sets: [{
+      weight: {
+        type: Number,
+        required: true,
+        min: 0
+      },
+      reps: {
+        type: Number,
+        required: true,
+        min: 0
+      }
+    }]
+  }],
+  // 後方互換性のため残す
   exercise: String,
-  // 新形式：セットごとの詳細
   sets: [{
     weight: Number,
     reps: Number
   }],
-  // 古い形式との互換性のため残す
   weight: Number,
   reps: Number,
-  image: String, // 画像URL
-  comment: String,
-  workoutDate: { type: Date }, // トレーニングを実際に行った日
-  timestamp: { type: Date, default: Date.now }, // 投稿した日時
-  likes: { type: Number, default: 0 },
-  likedBy: { type: [String], default: [] },
-  comments: { type: Number, default: 0 }
+  image: String,
+  comment: {
+    type: String,
+    maxlength: 500
+  },
+  workoutDate: { 
+    type: Date,
+    default: Date.now
+  },
+  timestamp: { 
+    type: Date, 
+    default: Date.now,
+    index: true
+  },
+  likes: { 
+    type: Number, 
+    default: 0 
+  },
+  likedBy: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  }],
+  comments: { 
+    type: Number, 
+    default: 0 
+  }
 });
+
+// 複合インデックス
+postSchema.index({ userId: 1, workoutDate: -1 });
+postSchema.index({ workoutDate: -1, timestamp: -1 });
 
 const Post = mongoose.model('Post', postSchema);
 
@@ -127,7 +257,7 @@ async function createSampleData() {
       });
       await sampleUser.save();
       
-      // サンプル投稿作成（過去の日付も含む）
+      // サンプル投稿作成
       const samplePosts = [
         {
           userId: sampleUser._id,
@@ -142,7 +272,7 @@ async function createSampleData() {
           comment: 'FitShareへようこそ！セットごとに重量と回数を記録できます💪',
           workoutDate: new Date(),
           likes: 1,
-          likedBy: [sampleUser._id.toString()],
+          likedBy: [sampleUser._id],
           comments: 0
         },
         {
@@ -156,24 +286,8 @@ async function createSampleData() {
             { weight: 75, reps: 12 }
           ],
           comment: '昨日のトレーニングを記録しました！',
-          workoutDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 昨日
+          workoutDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
           likes: 0,
-          likedBy: [],
-          comments: 0
-        },
-        {
-          userId: sampleUser._id,
-          user: sampleUser.username,
-          avatar: sampleUser.avatar,
-          exercise: 'デッドリフト',
-          sets: [
-            { weight: 100, reps: 5 },
-            { weight: 95, reps: 6 },
-            { weight: 90, reps: 8 }
-          ],
-          comment: '一週間前のデッドリフト記録です',
-          workoutDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1週間前
-          likes: 2,
           likedBy: [],
           comments: 0
         }
@@ -198,8 +312,8 @@ if (MONGODB_URI) {
   });
 }
 
-// 認証ミドルウェア
-const authenticateToken = (req, res, next) => {
+// 認証ミドルウェア（改善版）
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   
@@ -207,13 +321,23 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: '認証が必要です' });
   }
   
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'トークンが無効です' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // ユーザーの存在確認
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(403).json({ error: 'ユーザーが見つかりません' });
     }
-    req.user = user;
+    
+    req.user = decoded;
     next();
-  });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(403).json({ error: 'トークンの有効期限が切れています' });
+    }
+    return res.status(403).json({ error: 'トークンが無効です' });
+  }
 };
 
 // ルートパス
@@ -221,8 +345,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ユーザー登録
-app.post('/api/auth/register', async (req, res) => {
+// ヘルスチェックエンドポイント
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// ユーザー登録（改善版）
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { email, password, username } = req.body;
     
@@ -231,27 +364,39 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: '全ての項目を入力してください' });
     }
     
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'パスワードは6文字以上で入力してください' });
+    }
+    
+    if (username.length > 20) {
+      return res.status(400).json({ error: 'ユーザー名は20文字以内で入力してください' });
+    }
+    
     // 既存ユーザーチェック
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({ error: 'このメールアドレスは既に使用されています' });
     }
     
     // パスワードハッシュ化
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     
     // ユーザー作成
     const user = new User({
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
-      username,
+      username: username.trim(),
       avatar: username.charAt(0).toUpperCase()
     });
     
     await user.save();
     
-    // JWT生成
-    const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET);
+    // JWT生成（有効期限付き）
+    const token = jwt.sign(
+      { userId: user._id, email: user.email }, 
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
     
     res.json({
       token,
@@ -268,13 +413,17 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// ログイン
-app.post('/api/auth/login', async (req, res) => {
+// ログイン（改善版）
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    if (!email || !password) {
+      return res.status(400).json({ error: 'メールアドレスとパスワードを入力してください' });
+    }
+    
     // ユーザー検索
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(400).json({ error: 'メールアドレスまたはパスワードが正しくありません' });
     }
@@ -285,8 +434,16 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'メールアドレスまたはパスワードが正しくありません' });
     }
     
+    // 最終ログイン時刻を更新
+    user.lastLogin = new Date();
+    await user.save();
+    
     // JWT生成
-    const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET);
+    const token = jwt.sign(
+      { userId: user._id, email: user.email }, 
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
     
     res.json({
       token,
@@ -303,20 +460,51 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 全投稿を取得（workoutDate順にソート）
+// 全投稿を取得（改善版）
 app.get('/api/posts', async (req, res) => {
   try {
-    const posts = await Post.find()
+    const { page = 1, limit = 20, userId } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const query = userId ? { userId } : {};
+    
+    const posts = await Post.find(query)
       .populate('userId', 'username avatar')
-      .sort({ workoutDate: -1, timestamp: -1 }); // workoutDateを優先してソート
-    res.json(posts);
+      .sort({ workoutDate: -1, timestamp: -1 })
+      .limit(parseInt(limit))
+      .skip(skip)
+      .lean();
+    
+    // 画像URLの正規化
+    const normalizedPosts = posts.map(post => ({
+      ...post,
+      image: post.image ? normalizeImageUrl(req, post.image) : null
+    }));
+    
+    res.json(normalizedPosts);
   } catch (error) {
     console.error('投稿取得エラー:', error);
     res.status(500).json({ error: 'データの取得に失敗しました' });
   }
 });
 
-// 新規投稿（認証必要 + 投稿日指定対応）
+// 画像URLを正規化する関数
+function normalizeImageUrl(req, imagePath) {
+  if (!imagePath) return null;
+  
+  // 既に完全なURLの場合はそのまま返す
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // 相対パスの場合は完全なURLに変換
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const cleanPath = imagePath.startsWith('/') ? imagePath : '/' + imagePath;
+  return `${protocol}://${host}${cleanPath}`;
+}
+
+// 新規投稿（複数種目対応版）
 app.post('/api/posts', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -328,24 +516,76 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
       userId: user._id,
       user: user.username,
       avatar: user.avatar,
-      exercise: req.body.exercise,
       comment: req.body.comment || ''
     };
     
-    // セットデータの処理
-    if (req.body.sets) {
+    // 複数種目データの処理とバリデーション
+    if (req.body.exercises) {
       try {
-        postData.sets = JSON.parse(req.body.sets);
+        const exercises = typeof req.body.exercises === 'string' ? JSON.parse(req.body.exercises) : req.body.exercises;
+        if (!Array.isArray(exercises) || exercises.length === 0) {
+          return res.status(400).json({ error: '種目データが不正です' });
+        }
+        
+        // 各種目のバリデーション
+        const validatedExercises = exercises.map(exercise => {
+          if (!exercise.exercise || !exercise.exercise.trim()) {
+            throw new Error('種目名が入力されていません');
+          }
+          
+          if (!Array.isArray(exercise.sets) || exercise.sets.length === 0) {
+            throw new Error('セットデータが不正です');
+          }
+          
+          const validatedSets = exercise.sets.map(set => ({
+            weight: parseFloat(set.weight),
+            reps: parseInt(set.reps)
+          }));
+          
+          if (validatedSets.some(set => isNaN(set.weight) || isNaN(set.reps) || set.weight < 0 || set.reps < 0)) {
+            throw new Error('重量と回数は0以上の数値で入力してください');
+          }
+          
+          return {
+            exercise: exercise.exercise.trim(),
+            sets: validatedSets
+          };
+        });
+        
+        postData.exercises = validatedExercises;
+      } catch (error) {
+        return res.status(400).json({ error: error.message || '種目データの形式が正しくありません' });
+      }
+    } else if (req.body.exercise && req.body.sets) {
+      // 旧形式との互換性のため
+      try {
+        const sets = JSON.parse(req.body.sets);
+        postData.exercises = [{
+          exercise: req.body.exercise,
+          sets: sets.map(set => ({
+            weight: parseFloat(set.weight),
+            reps: parseInt(set.reps)
+          }))
+        }];
       } catch (error) {
         return res.status(400).json({ error: 'セットデータの形式が正しくありません' });
       }
+    } else {
+      return res.status(400).json({ error: '種目データが必要です' });
     }
     
-    // 投稿日（トレーニング実施日）の処理
+    // 投稿日の処理
     if (req.body.workoutDate) {
-      postData.workoutDate = new Date(req.body.workoutDate);
+      const workoutDate = new Date(req.body.workoutDate);
+      if (isNaN(workoutDate.getTime())) {
+        return res.status(400).json({ error: '日付の形式が正しくありません' });
+      }
+      if (workoutDate > new Date()) {
+        return res.status(400).json({ error: '未来の日付は指定できません' });
+      }
+      postData.workoutDate = workoutDate;
     } else {
-      postData.workoutDate = new Date(); // デフォルトは今日
+      postData.workoutDate = new Date();
     }
     
     // 画像がある場合
@@ -359,15 +599,29 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     // populateして返す
     await newPost.populate('userId', 'username avatar');
     
-    io.emit('newPost', newPost);
-    res.json(newPost);
+    // 画像URLを正規化
+    const responsePost = newPost.toObject();
+    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    
+    io.emit('newPost', responsePost);
+    res.json(responsePost);
   } catch (error) {
     console.error('投稿エラー:', error);
+    
+    // アップロードされたファイルがあれば削除
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (err) {
+        console.error('ファイル削除エラー:', err);
+      }
+    }
+    
     res.status(500).json({ error: '投稿の保存に失敗しました' });
   }
 });
 
-// 投稿の更新（認証必要 + 投稿日更新対応）
+// 投稿の更新（改善版）
 app.put('/api/posts/:id', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -381,24 +635,91 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: '権限がありません' });
     }
     
-    // 更新可能なフィールドのみ更新
-    if (req.body.exercise) post.exercise = req.body.exercise;
-    if (req.body.sets) post.sets = req.body.sets;
-    if (req.body.comment !== undefined) post.comment = req.body.comment;
-    if (req.body.workoutDate) post.workoutDate = new Date(req.body.workoutDate);
+    // 複数種目データの更新
+    if (req.body.exercises) {
+      try {
+        const exercises = typeof req.body.exercises === 'string' ? JSON.parse(req.body.exercises) : req.body.exercises;
+        if (!Array.isArray(exercises) || exercises.length === 0) {
+          return res.status(400).json({ error: '種目データが不正です' });
+        }
+        
+        const validatedExercises = exercises.map(exercise => {
+          if (!exercise.exercise || !exercise.exercise.trim()) {
+            throw new Error('種目名が入力されていません');
+          }
+          
+          if (!Array.isArray(exercise.sets) || exercise.sets.length === 0) {
+            throw new Error('セットデータが不正です');
+          }
+          
+          const validatedSets = exercise.sets.map(set => ({
+            weight: parseFloat(set.weight),
+            reps: parseInt(set.reps)
+          }));
+          
+          if (validatedSets.some(set => isNaN(set.weight) || isNaN(set.reps) || set.weight < 0 || set.reps < 0)) {
+            throw new Error('重量と回数は0以上の数値で入力してください');
+          }
+          
+          return {
+            exercise: exercise.exercise.trim(),
+            sets: validatedSets
+          };
+        });
+        
+        post.exercises = validatedExercises;
+      } catch (error) {
+        return res.status(400).json({ error: error.message || '種目データの形式が正しくありません' });
+      }
+    }
+    
+    // 旧形式との互換性
+    else if (req.body.exercise && req.body.sets) {
+      const validatedSets = req.body.sets.map(set => ({
+        weight: parseFloat(set.weight),
+        reps: parseInt(set.reps)
+      }));
+      
+      if (validatedSets.some(set => isNaN(set.weight) || isNaN(set.reps) || set.weight < 0 || set.reps < 0)) {
+        return res.status(400).json({ error: '重量と回数は0以上の数値で入力してください' });
+      }
+      
+      post.exercises = [{
+        exercise: req.body.exercise.trim(),
+        sets: validatedSets
+      }];
+    }
+    
+    if (req.body.comment !== undefined) {
+      post.comment = req.body.comment.substring(0, 500);
+    }
+    
+    if (req.body.workoutDate) {
+      const workoutDate = new Date(req.body.workoutDate);
+      if (isNaN(workoutDate.getTime())) {
+        return res.status(400).json({ error: '日付の形式が正しくありません' });
+      }
+      if (workoutDate > new Date()) {
+        return res.status(400).json({ error: '未来の日付は指定できません' });
+      }
+      post.workoutDate = workoutDate;
+    }
     
     await post.save();
     await post.populate('userId', 'username avatar');
     
-    io.emit('updatePost', post);
-    res.json(post);
+    const responsePost = post.toObject();
+    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    
+    io.emit('updatePost', responsePost);
+    res.json(responsePost);
   } catch (error) {
     console.error('更新エラー:', error);
     res.status(500).json({ error: '更新に失敗しました' });
   }
 });
 
-// 投稿の削除（認証必要）
+// 投稿の削除（改善版）
 app.delete('/api/posts/:id', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -414,10 +735,11 @@ app.delete('/api/posts/:id', authenticateToken, async (req, res) => {
     
     // 画像がある場合は削除
     if (post.image) {
-      const imagePath = path.join(__dirname, post.image);
-      if (fs.existsSync(imagePath)) {
+      const imagePath = post.image.replace(/^\//, '');
+      const fullPath = path.join(__dirname, imagePath);
+      if (fs.existsSync(fullPath)) {
         try {
-          fs.unlinkSync(imagePath);
+          fs.unlinkSync(fullPath);
         } catch (error) {
           console.error('画像削除エラー:', error);
         }
@@ -434,7 +756,7 @@ app.delete('/api/posts/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// いいね機能（認証必要）
+// いいね機能（改善版）
 app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -444,10 +766,11 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     }
     
     const userId = req.user.userId;
-    const likedIndex = post.likedBy.indexOf(userId);
+    const userObjectId = mongoose.Types.ObjectId(userId);
+    const likedIndex = post.likedBy.findIndex(id => id.equals(userObjectId));
     
     if (likedIndex === -1) {
-      post.likedBy.push(userId);
+      post.likedBy.push(userObjectId);
       post.likes++;
     } else {
       post.likedBy.splice(likedIndex, 1);
@@ -457,15 +780,18 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     await post.save();
     await post.populate('userId', 'username avatar');
     
-    io.emit('updatePost', post);
-    res.json(post);
+    const responsePost = post.toObject();
+    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    
+    io.emit('updatePost', responsePost);
+    res.json(responsePost);
   } catch (error) {
     console.error('いいねエラー:', error);
     res.status(500).json({ error: 'いいねの更新に失敗しました' });
   }
 });
 
-// ユーザーの統計データを取得するAPI
+// ユーザーの統計データを取得（改善版）
 app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -475,27 +801,50 @@ app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: '権限がありません' });
     }
     
-    const posts = await Post.find({ userId });
+    const posts = await Post.find({ userId }).lean();
+    
+    if (posts.length === 0) {
+      return res.json({
+        maxWeights: {},
+        totalDays: 0,
+        totalPosts: 0,
+        exerciseCount: {},
+        recentProgress: []
+      });
+    }
     
     // 最大重量を計算
     const maxWeights = {};
+    const exerciseProgress = {};
+    
     posts.forEach(post => {
+      const exercise = post.exercise;
+      if (!exercise) return;
+      
+      // 最大重量の計算
       if (post.sets && Array.isArray(post.sets)) {
         post.sets.forEach(set => {
           const weight = parseFloat(set.weight);
-          if (weight && (!maxWeights[post.exercise] || weight > maxWeights[post.exercise])) {
-            maxWeights[post.exercise] = weight;
+          if (weight && (!maxWeights[exercise] || weight > maxWeights[exercise])) {
+            maxWeights[exercise] = weight;
           }
         });
-      } else if (post.weight) {
-        const weight = parseFloat(post.weight);
-        if (weight && (!maxWeights[post.exercise] || weight > maxWeights[post.exercise])) {
-          maxWeights[post.exercise] = weight;
+        
+        // 進捗データの収集
+        const maxSetWeight = Math.max(...post.sets.map(s => parseFloat(s.weight) || 0));
+        if (maxSetWeight > 0) {
+          if (!exerciseProgress[exercise]) {
+            exerciseProgress[exercise] = [];
+          }
+          exerciseProgress[exercise].push({
+            date: post.workoutDate || post.timestamp,
+            weight: maxSetWeight
+          });
         }
       }
     });
     
-    // 総トレーニング日数
+    // 総トレーニング日数（重複を除く）
     const uniqueDays = new Set(posts.map(post => 
       new Date(post.workoutDate || post.timestamp).toDateString()
     )).size;
@@ -503,14 +852,29 @@ app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
     // 種目別の回数
     const exerciseCount = {};
     posts.forEach(post => {
-      exerciseCount[post.exercise] = (exerciseCount[post.exercise] || 0) + 1;
+      if (post.exercise) {
+        exerciseCount[post.exercise] = (exerciseCount[post.exercise] || 0) + 1;
+      }
     });
+    
+    // 最近の進捗（直近1ヶ月）
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const recentProgress = Object.entries(exerciseProgress).map(([exercise, data]) => ({
+      exercise,
+      data: data
+        .filter(d => new Date(d.date) >= oneMonthAgo)
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(-10) // 最新10件まで
+    })).filter(item => item.data.length > 0);
     
     res.json({
       maxWeights,
       totalDays: uniqueDays,
       totalPosts: posts.length,
-      exerciseCount
+      exerciseCount,
+      recentProgress
     });
   } catch (error) {
     console.error('統計データ取得エラー:', error);
@@ -518,18 +882,17 @@ app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// ユーザーの投稿一覧を取得するAPI
-app.get('/api/users/:userId/posts', async (req, res) => {
+// ユーザー情報の取得
+app.get('/api/users/:userId', authenticateToken, async (req, res) => {
   try {
-    const userId = req.params.userId;
-    const posts = await Post.find({ userId })
-      .populate('userId', 'username avatar')
-      .sort({ workoutDate: -1, timestamp: -1 });
-    
-    res.json(posts);
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+    res.json(user);
   } catch (error) {
-    console.error('ユーザー投稿取得エラー:', error);
-    res.status(500).json({ error: 'ユーザーの投稿取得に失敗しました' });
+    console.error('ユーザー情報取得エラー:', error);
+    res.status(500).json({ error: 'ユーザー情報の取得に失敗しました' });
   }
 });
 
@@ -539,43 +902,154 @@ app.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'ファイルサイズが大きすぎます（5MB以下にしてください）' });
     }
+    return res.status(400).json({ error: `ファイルアップロードエラー: ${error.message}` });
   }
+  
+  if (error.name === 'ValidationError') {
+    const messages = Object.values(error.errors).map(err => err.message);
+    return res.status(400).json({ error: messages.join(', ') });
+  }
+  
+  if (error.name === 'CastError') {
+    return res.status(400).json({ error: '無効なIDフォーマットです' });
+  }
+  
   console.error('サーバーエラー:', error);
   res.status(500).json({ error: '内部サーバーエラーが発生しました' });
 });
 
-// Socket.io接続
+// 404ハンドラー
+app.use((req, res) => {
+  res.status(404).json({ error: 'エンドポイントが見つかりません' });
+});
+
+// Socket.io接続（改善版）
+const activeConnections = new Map();
+
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(decoded.userId);
+      if (user) {
+        socket.userId = user._id.toString();
+        socket.user = user;
+      }
+    }
+    next();
+  } catch (err) {
+    console.log('Socket認証エラー:', err.message);
+    next();
+  }
+});
+
 io.on('connection', async (socket) => {
   console.log('新しいユーザーが接続しました:', socket.id);
   
+  // ユーザーIDがある場合は接続を記録
+  if (socket.userId) {
+    activeConnections.set(socket.userId, socket.id);
+  }
+  
   try {
+    // 初期データ送信（ページネーション対応）
     const posts = await Post.find()
       .populate('userId', 'username avatar')
-      .sort({ workoutDate: -1, timestamp: -1 });
-    socket.emit('allPosts', posts);
+      .sort({ workoutDate: -1, timestamp: -1 })
+      .limit(20)
+      .lean();
+    
+    // 画像URLの正規化
+    const normalizedPosts = posts.map(post => ({
+      ...post,
+      image: post.image ? `/uploads/${path.basename(post.image)}` : null
+    }));
+    
+    socket.emit('allPosts', normalizedPosts);
   } catch (error) {
     console.error('投稿の取得エラー:', error);
+    socket.emit('error', { message: '投稿の取得に失敗しました' });
   }
+  
+  // カスタムイベントハンドラー
+  socket.on('requestMorePosts', async (data) => {
+    try {
+      const { page = 2, limit = 20 } = data;
+      const skip = (page - 1) * limit;
+      
+      const posts = await Post.find()
+        .populate('userId', 'username avatar')
+        .sort({ workoutDate: -1, timestamp: -1 })
+        .limit(parseInt(limit))
+        .skip(skip)
+        .lean();
+      
+      socket.emit('morePosts', {
+        posts,
+        page,
+        hasMore: posts.length === parseInt(limit)
+      });
+    } catch (error) {
+      console.error('追加投稿取得エラー:', error);
+      socket.emit('error', { message: '投稿の取得に失敗しました' });
+    }
+  });
   
   socket.on('disconnect', () => {
     console.log('ユーザーが切断しました:', socket.id);
+    
+    // アクティブな接続から削除
+    if (socket.userId) {
+      activeConnections.delete(socket.userId);
+    }
   });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+// Graceful shutdown（改善版）
+const gracefulShutdown = async (signal) => {
+  console.log(`${signal} signal received: closing HTTP server`);
+  
+  // 新規接続の受付を停止
   server.close(() => {
     console.log('HTTP server closed');
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed');
-      process.exit(0);
-    });
   });
+  
+  // Socket.io接続をクローズ
+  io.close(() => {
+    console.log('Socket.io connections closed');
+  });
+  
+  // MongoDB接続をクローズ
+  try {
+    await mongoose.connection.close(false);
+    console.log('MongoDB connection closed');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// 未処理のPromiseエラーを捕捉
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+  gracefulShutdown('UNHANDLED_REJECTION');
 });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`サーバーがポート${PORT}で起動しました`);
-  console.log(`アプリケーションURL: http://localhost:${PORT}`);
+  console.log(`
+=====================================
+FitShare バックエンドサーバー
+=====================================
+ポート: ${PORT}
+環境: ${process.env.NODE_ENV || 'development'}
+MongoDB: ${MONGODB_URI ? '接続待機中...' : 'ローカルモード'}
+URL: http://localhost:${PORT}
+=====================================
+  `);
 });

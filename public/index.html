@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="description" content="FitShare - トレーニングを記録・共有する筋トレSNS">
+    
     <title>FitShare - 筋トレSNS</title>
     
+    <!-- ファビコン -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%233B82F6'/%3E%3Ctext x='50' y='50' font-size='60' text-anchor='middle' dy='.3em' fill='white'%3E💪%3C/text%3E%3C/svg%3E">
+    
     <!-- アイコン設定 -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233B82F6'/><text x='50' y='50' font-size='60' text-anchor='middle' dy='.3em' fill='white'>💪</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%233B82F6'/%3E%3Ctext x='50' y='50' font-size='60' text-anchor='middle' dy='.3em' fill='white'%3E💪%3C/text%3E%3C/svg%3E">
     
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -19,6 +25,17 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'spin': 'spin 1s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
     
     <style>
         /* PWA用のスタイル */
@@ -27,23 +44,116 @@
             -webkit-user-select: none;
             user-select: none;
             overscroll-behavior-y: contain;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
-        /* スクロールバーを非表示 */
+        /* スクロールバーのカスタマイズ */
         ::-webkit-scrollbar {
-            display: none;
+            width: 6px;
+            height: 6px;
         }
         
-        /* Lucideアイコン用のスタイル */
-        .lucide-icon {
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* モバイルでのスクロールバー非表示 */
+        @media (max-width: 768px) {
+            ::-webkit-scrollbar {
+                display: none;
+            }
+        }
+        
+        /* ローディングアニメーション */
+        .loading-dots {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .loading-dots::after {
+            content: '';
             display: inline-block;
-            vertical-align: middle;
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+        
+        /* セーフエリア対応 */
+        .safe-area-inset-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        /* タップハイライトを無効化 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* フォントのアンチエイリアシング */
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
     </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-gray-50">
+    <div id="root">
+        <!-- ローディング画面 -->
+        <div class="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-white bg-opacity-30 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <span class="text-4xl">💪</span>
+                </div>
+                <h1 class="text-white text-2xl font-bold mb-2">FitShare</h1>
+                <p class="text-white text-opacity-80 loading-dots">読み込み中</p>
+            </div>
+        </div>
+    </div>
     
-    <script src="/app.js"></script>
+    <!-- 分割されたコンポーネントを読み込み -->
+    <script src="utils/helpers.js"></script>
+    <script src="components/icons.js"></script>
+    <script src="components/common.js"></script>
+    <script src="components/AuthForm.js"></script>
+    <script src="components/WorkoutForm.js"></script>
+    <script src="components/PostList.js"></script>
+    <script src="app.js"></script>
+    
+    <!-- PWA Service Worker登録（オプション） -->
+    <script>
+        // Service Workerファイルがある場合のみ登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // sw.jsファイルの存在を確認
+                fetch('/sw.js', { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            navigator.serviceWorker.register('/sw.js').then(registration => {
+                                console.log('ServiceWorker registration successful');
+                            }, err => {
+                                console.log('ServiceWorker registration failed: ', err);
+                            });
+                        }
+                    })
+                    .catch(() => {
+                        console.log('No service worker file found');
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

@@ -1,0 +1,207 @@
+// 投稿リストコンポーネント
+const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick }) => {
+  return React.createElement(
+    "div",
+    { className: "space-y-3" },
+    posts.map((post) => {
+      const postUser = post.userId || post.user;
+      const isOwner =
+        currentUser &&
+        postUser &&
+        ((typeof postUser === "object" &&
+          postUser._id === currentUser.id) ||
+          (typeof postUser === "string" &&
+            postUser === currentUser.username));
+      const hasLiked =
+        currentUser &&
+        post.likedBy &&
+        post.likedBy.includes(currentUser.id);
+      const displayUser =
+        typeof postUser === "object" ? postUser.username : post.user;
+      const displayAvatar =
+        typeof postUser === "object" ? postUser.avatar : post.avatar;
+
+      return React.createElement(
+        "div",
+        {
+          key: post._id || post.id,
+          className: "bg-white rounded-xl shadow-md p-4",
+        },
+        React.createElement(
+          "div",
+          { className: "flex items-start space-x-3" },
+          React.createElement(
+            "div",
+            {
+              className:
+                "w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold",
+            },
+            displayAvatar
+          ),
+          React.createElement(
+            "div",
+            { className: "flex-1" },
+            React.createElement(
+              "div",
+              { className: "flex items-center justify-between mb-2" },
+              React.createElement(
+                "h3",
+                { className: "font-semibold" },
+                displayUser
+              ),
+              React.createElement(
+                "div",
+                { className: "flex items-center space-x-2" },
+                React.createElement(
+                  "span",
+                  { className: "text-xs text-gray-500" },
+                  formatTimestamp(post.workoutDate || post.timestamp)
+                ),
+                isOwner &&
+                  React.createElement(
+                    "div",
+                    { className: "flex items-center space-x-1" },
+                    React.createElement(
+                      "button",
+                      {
+                        onClick: () => onEdit(post),
+                        className:
+                          "p-1 text-gray-500 hover:text-blue-500",
+                      },
+                      React.createElement(Edit, {
+                        className: "h-4 w-4",
+                      })
+                    ),
+                    React.createElement(
+                      "button",
+                      {
+                        onClick: () =>
+                          onDelete(post._id || post.id),
+                        className:
+                          "p-1 text-gray-500 hover:text-red-500",
+                      },
+                      React.createElement(Trash, {
+                        className: "h-4 w-4",
+                      })
+                    )
+                  )
+              )
+            ),
+
+            // 種目表示（複数種目対応）
+            (() => {
+              let list = post.exercises;
+              if (typeof list === "string") {
+                try { list = JSON.parse(list); } catch { list = null; }
+              }
+              if (!Array.isArray(list)) {
+                list = [{
+                  exercise: post.exercise,
+                  sets: post.sets ?? [{ weight: post.weight, reps: post.reps }]
+                }];
+              }
+              return React.createElement(
+                React.Fragment,
+                null,
+                list.map((ex, i) =>
+                  React.createElement(ExerciseBlock, { key: i, ex })
+                )
+              );
+            })(),
+
+            // 画像表示（クリックで拡大）
+            post.image &&
+              React.createElement(
+                "div",
+                {
+                  className: "mb-2 relative group",
+                },
+                React.createElement("img", {
+                  key: `img-${post._id || post.id}-${post.image}`,
+                  src: post.image,
+                  alt: "トレーニング写真",
+                  className:
+                    "rounded-lg max-h-64 w-full object-cover cursor-pointer",
+                  loading: "lazy",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    onImageClick(post.image);
+                  },
+                  onError: (e) => {
+                    console.error("画像の読み込みに失敗しました:", post.image);
+                    if (!e.target.dataset.errorHandled) {
+                      e.target.dataset.errorHandled = "true";
+                      e.target.src =
+                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y0ZjRmNCIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZmlsbD0iIzk5OSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiPueUu+WDj+OBjOiqreOBv+i+vOOCgeOBvuOBm+OCkzwvdGV4dD4KPC9zdmc+";
+                    }
+                  },
+                }),
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center pointer-events-none",
+                  },
+                  React.createElement(
+                    "div",
+                    {
+                      className:
+                        "bg-white bg-opacity-90 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
+                    },
+                    React.createElement(Image, {
+                      className: "h-5 w-5 text-gray-700",
+                    })
+                  )
+                )
+              ),
+
+            // コメント（改行対応）
+            post.comment &&
+              React.createElement(CommentWithLineBreaks, {
+                comment: post.comment,
+              }),
+
+            React.createElement(
+              "div",
+              { className: "flex items-center space-x-4" },
+              React.createElement(
+                "button",
+                {
+                  onClick: () => onLike(post._id || post.id),
+                  className:
+                    "flex items-center space-x-1 text-gray-600 active:text-red-500",
+                  disabled: !connected,
+                },
+                React.createElement(Heart, {
+                  className: `h-5 w-5 ${
+                    hasLiked ? "fill-red-500 text-red-500" : ""
+                  }`,
+                }),
+                React.createElement(
+                  "span",
+                  { className: "text-sm" },
+                  post.likes || 0
+                )
+              ),
+              React.createElement(
+                "div",
+                {
+                  className:
+                    "flex items-center space-x-1 text-gray-600",
+                },
+                React.createElement(MessageCircle, {
+                  className: "h-5 w-5",
+                }),
+                React.createElement(
+                  "span",
+                  { className: "text-sm" },
+                  post.comments || 0
+                )
+              )
+            )
+          )
+        )
+      );
+    })
+  );
+};

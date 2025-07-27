@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitShare Test</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="test-root"></div>
+    
+    <script>
+        // テスト用の簡単なコンポーネント
+        const TestWorkoutForm = () => {
+            const [formData, setFormData] = React.useState({
+                exercises: [
+                    {
+                        exercise: "",
+                        sets: [{ weight: "", reps: "" }],
+                    },
+                ],
+                comment: "",
+                workoutDate: new Date().toISOString().split("T")[0],
+            });
+            
+            const [showCustomInput, setShowCustomInput] = React.useState([false]);
+            const exercises = ["ベンチプレス", "スクワット", "デッドリフト"];
+            
+            const addExercise = () => {
+                console.log("種目追加前:", formData.exercises);
+                setFormData({
+                    ...formData,
+                    exercises: [
+                        ...formData.exercises,
+                        {
+                            exercise: "",
+                            sets: [{ weight: "", reps: "" }],
+                        },
+                    ],
+                });
+                setShowCustomInput([...showCustomInput, false]);
+                console.log("種目追加後の予定:", [...formData.exercises, { exercise: "", sets: [{ weight: "", reps: "" }] }]);
+            };
+            
+            const updateExercise = (index, value) => {
+                console.log(`種目更新: index=${index}, value=${value}`);
+                const newExercises = [...formData.exercises];
+                newExercises[index].exercise = value;
+                setFormData({ ...formData, exercises: newExercises });
+            };
+            
+            const updateSet = (exerciseIndex, setIndex, field, value) => {
+                console.log(`セット更新: exerciseIndex=${exerciseIndex}, setIndex=${setIndex}, field=${field}, value=${value}`);
+                const newExercises = [...formData.exercises];
+                newExercises[exerciseIndex].sets[setIndex][field] = value;
+                setFormData({ ...formData, exercises: newExercises });
+            };
+            
+            const handleSubmit = () => {
+                console.log("投稿データ:", formData);
+                const validExercises = formData.exercises
+                    .filter(e => e.exercise.trim() !== '' && e.sets.some(s => s.weight && s.reps))
+                    .map(e => ({
+                        exercise: e.exercise.trim(),
+                        sets: e.sets
+                            .filter(s => s.weight && s.reps)
+                            .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+                    }));
+                console.log("有効な種目:", validExercises);
+            };
+            
+            return React.createElement(
+                "div",
+                { className: "p-4 max-w-md mx-auto" },
+                React.createElement("h1", { className: "text-xl font-bold mb-4" }, "複数種目テスト"),
+                React.createElement(
+                    "div",
+                    { className: "space-y-4" },
+                    formData.exercises.map((exerciseData, exerciseIndex) =>
+                        React.createElement(
+                            "div",
+                            { key: exerciseIndex, className: "border p-3 rounded" },
+                            React.createElement(
+                                "div",
+                                { className: "mb-2 font-bold" },
+                                `種目 ${exerciseIndex + 1}`
+                            ),
+                            React.createElement("select", {
+                                value: exerciseData.exercise,
+                                onChange: (e) => updateExercise(exerciseIndex, e.target.value),
+                                className: "w-full p-2 border rounded mb-2"
+                            },
+                                React.createElement("option", { value: "" }, "種目を選択"),
+                                exercises.map(ex => React.createElement("option", { key: ex, value: ex }, ex))
+                            ),
+                            exerciseData.sets.map((set, setIndex) =>
+                                React.createElement(
+                                    "div",
+                                    { key: setIndex, className: "flex space-x-2 mb-1" },
+                                    React.createElement("input", {
+                                        type: "number",
+                                        value: set.weight,
+                                        onChange: (e) => updateSet(exerciseIndex, setIndex, "weight", e.target.value),
+                                        placeholder: "重量",
+                                        className: "w-20 p-1 border rounded"
+                                    }),
+                                    React.createElement("span", {}, "kg ×"),
+                                    React.createElement("input", {
+                                        type: "number",
+                                        value: set.reps,
+                                        onChange: (e) => updateSet(exerciseIndex, setIndex, "reps", e.target.value),
+                                        placeholder: "回数",
+                                        className: "w-20 p-1 border rounded"
+                                    }),
+                                    React.createElement("span", {}, "回")
+                                )
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "button",
+                        {
+                            onClick: addExercise,
+                            className: "w-full p-2 bg-blue-500 text-white rounded"
+                        },
+                        "種目を追加"
+                    ),
+                    React.createElement(
+                        "button",
+                        {
+                            onClick: handleSubmit,
+                            className: "w-full p-2 bg-green-500 text-white rounded"
+                        },
+                        "投稿テスト"
+                    )
+                )
+            );
+        };
+        
+        const root = ReactDOM.createRoot(document.getElementById("test-root"));
+        root.render(React.createElement(TestWorkoutForm));
+    </script>
+</body>
+</html>
