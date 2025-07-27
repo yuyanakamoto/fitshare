@@ -34,3 +34,6 @@ const defaultExercises = [
   "アームカール",
   "トライセプスエクステンション",
 ];
+
+// グローバルにアクセス可能にする
+window.defaultExercises = defaultExercises;

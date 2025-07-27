@@ -17,7 +17,8 @@ const WorkoutForm = ({
   onAddSet,
   onRemoveSet,
   onUpdateSet,
-  onCopyPreviousWeight
+  onCopyPreviousWeight,
+  onDeleteCustomExercise
 }) => {
   return React.createElement(
     "div",
@@ -124,6 +125,39 @@ const WorkoutForm = ({
                 "その他（自由入力）"
               )
             ),
+
+            // カスタム種目管理（選択された種目がカスタムの場合）
+            exerciseData.exercise && 
+            !window.defaultExercises.includes(exerciseData.exercise) &&
+            exerciseData.exercise !== "" &&
+              React.createElement(
+                "div",
+                { className: "mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg" },
+                React.createElement(
+                  "div",
+                  { className: "flex items-center justify-between" },
+                  React.createElement(
+                    "span",
+                    { className: "text-sm text-yellow-700" },
+                    `🏷️ カスタム種目: ${exerciseData.exercise}`
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: () => {
+                        if (onDeleteCustomExercise) {
+                          onDeleteCustomExercise(exerciseData.exercise);
+                          // 削除後、種目選択をリセット
+                          onUpdateExercise(exerciseIndex, "");
+                        }
+                      },
+                      className: "text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                    },
+                    "🗑️ 削除"
+                  )
+                )
+              ),
 
             // カスタム種目入力欄
             showCustomInput[exerciseIndex] &&

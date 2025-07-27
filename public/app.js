@@ -217,6 +217,30 @@ const FitShareApp = () => {
     }
   };
 
+  // カスタム種目を削除する関数
+  const deleteCustomExercise = (exerciseName) => {
+    // デフォルト種目は削除できない
+    if (defaultExercises.includes(exerciseName)) {
+      alert('デフォルト種目は削除できません');
+      return;
+    }
+
+    if (confirm(`「${exerciseName}」を種目リストから削除しますか？`)) {
+      const newExercises = exercises.filter(ex => ex !== exerciseName);
+      setExercises(newExercises);
+
+      const customExercises = newExercises.filter(
+        (ex) => !defaultExercises.includes(ex)
+      );
+      localStorage.setItem(
+        "fitShareCustomExercises",
+        JSON.stringify(customExercises)
+      );
+      
+      console.log(`カスタム種目「${exerciseName}」を削除しました`);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!currentUser) {
       setShowAuthForm(true);
@@ -760,7 +784,8 @@ const FitShareApp = () => {
           onAddSet: addSet,
           onRemoveSet: removeSet,
           onUpdateSet: updateSet,
-          onCopyPreviousWeight: copyPreviousWeight
+          onCopyPreviousWeight: copyPreviousWeight,
+          onDeleteCustomExercise: deleteCustomExercise
         }),
 
       // 投稿一覧

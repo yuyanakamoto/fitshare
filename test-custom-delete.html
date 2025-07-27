@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カスタム種目削除テスト</title>
+    <script src="utils/helpers.js"></script>
+</head>
+<body>
+    <h1>カスタム種目削除機能テスト</h1>
+    
+    <div>
+        <h2>テスト1: デフォルト種目削除試行</h2>
+        <button id="testDefaultDelete">ベンチプレス削除試行</button>
+        <p id="defaultResult"></p>
+    </div>
+    
+    <div>
+        <h2>テスト2: カスタム種目削除試行</h2>
+        <button id="testCustomDelete">マイカスタム種目A削除試行</button>
+        <p id="customResult"></p>
+    </div>
+    
+    <div>
+        <h2>現在の種目リスト</h2>
+        <ul id="exerciseList"></ul>
+    </div>
+    
+    <script>
+        // カスタム種目をローカルストレージに追加
+        const customExercises = ["カスタム筋トレ種目テスト", "マイカスタム種目A", "マイカスタム種目B"];
+        localStorage.setItem("fitShareCustomExercises", JSON.stringify(customExercises));
+        
+        // 種目リストを初期化
+        const savedExercises = localStorage.getItem("fitShareCustomExercises");
+        const allExercises = savedExercises ? 
+            [...defaultExercises, ...JSON.parse(savedExercises)] :
+            defaultExercises;
+        
+        // deleteCustomExercise関数を実装
+        function deleteCustomExercise(exerciseName) {
+            if (defaultExercises.includes(exerciseName)) {
+                alert('デフォルト種目は削除できません');
+                return false;
+            }
+
+            if (confirm(`「${exerciseName}」を種目リストから削除しますか？`)) {
+                const currentCustom = JSON.parse(localStorage.getItem("fitShareCustomExercises") || "[]");
+                const newCustom = currentCustom.filter(ex => ex !== exerciseName);
+                localStorage.setItem("fitShareCustomExercises", JSON.stringify(newCustom));
+                console.log(`カスタム種目「${exerciseName}」を削除しました`);
+                updateExerciseList();
+                return true;
+            }
+            return false;
+        }
+        
+        // 種目リストを更新
+        function updateExerciseList() {
+            const saved = localStorage.getItem("fitShareCustomExercises");
+            const current = saved ? [...defaultExercises, ...JSON.parse(saved)] : defaultExercises;
+            const listEl = document.getElementById("exerciseList");
+            listEl.innerHTML = "";
+            current.forEach(ex => {
+                const li = document.createElement("li");
+                const isCustom = !defaultExercises.includes(ex);
+                li.textContent = ex + (isCustom ? " (カスタム)" : " (デフォルト)");
+                listEl.appendChild(li);
+            });
+        }
+        
+        // イベントリスナー
+        document.getElementById("testDefaultDelete").addEventListener("click", () => {
+            const result = deleteCustomExercise("ベンチプレス");
+            document.getElementById("defaultResult").textContent = 
+                result ? "削除成功" : "削除キャンセルまたは失敗";
+        });
+        
+        document.getElementById("testCustomDelete").addEventListener("click", () => {
+            const result = deleteCustomExercise("マイカスタム種目A");
+            document.getElementById("customResult").textContent = 
+                result ? "削除成功" : "削除キャンセルまたは失敗";
+        });
+        
+        // 初期表示
+        updateExerciseList();
+    </script>
+</body>
+</html>
