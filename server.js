@@ -609,8 +609,23 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
         return res.status(400).json({ error: '未来の日付は指定できません' });
       }
       postData.workoutDate = workoutDate;
+      
+      // 投稿時刻の設定：当日なら現在時刻、過去日なら12時に設定
+      const today = new Date();
+      const isToday = workoutDate.toDateString() === today.toDateString();
+      
+      if (isToday) {
+        // 当日投稿：実際の投稿時刻を使用
+        postData.timestamp = new Date();
+      } else {
+        // 過去日投稿：その日の12:00に設定
+        const pastTimestamp = new Date(workoutDate);
+        pastTimestamp.setHours(12, 0, 0, 0);
+        postData.timestamp = pastTimestamp;
+      }
     } else {
       postData.workoutDate = new Date();
+      postData.timestamp = new Date(); // 当日投稿なので現在時刻
     }
     
     // 画像がある場合
