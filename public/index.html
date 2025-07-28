@@ -7,6 +7,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#3B82F6">
     <meta name="description" content="FitShare - トレーニングを記録・共有する筋トレSNS">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <title>FitShare - 筋トレSNS</title>
     
@@ -125,14 +128,37 @@
     </div>
     
     <!-- 分割されたコンポーネントを読み込み -->
-    <script src="utils/helpers.js"></script>
-    <script src="components/icons.js"></script>
-    <script src="components/common.js"></script>
-    <script src="components/AuthForm.js"></script>
-    <script src="components/WorkoutForm.js"></script>
-    <script src="components/PostList.js"></script>
-    <script src="components/ProfilePage.js"></script>
-    <script src="app.js"></script>
+    <script src="utils/helpers.js?v=20250728_global_fix"></script>
+    <script src="components/icons.js?v=20250728"></script>
+    <script src="components/common.js?v=20250728"></script>
+    <script src="components/AuthForm.js?v=20250728"></script>
+    <script src="components/WorkoutForm.js?v=20250728"></script>
+    <script src="components/PostList.js?v=SERVER_TIMESTAMP_FIX"></script>
+    <script src="components/ProfilePage.js?v=SERVER_TIMESTAMP_FIX"></script>
+    <script src="app.js?v=20250728"></script>
+    
+    <!-- 時刻表示テスト用スクリプト -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 時刻表示機能テスト開始');
+            
+            // formatTimestamp関数が利用可能かチェック
+            if (typeof window.formatTimestamp === 'function') {
+                console.log('✅ formatTimestamp関数が利用可能');
+                
+                const now = new Date();
+                const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+                const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+                
+                console.log('現在時刻のテスト:', window.formatTimestamp(now));
+                console.log('5分前のテスト:', window.formatTimestamp(fiveMinutesAgo));
+                console.log('1時間前のテスト:', window.formatTimestamp(oneHourAgo));
+            } else {
+                console.error('❌ formatTimestamp関数が利用できません');
+                console.log('window上の利用可能な関数:', Object.keys(window).filter(k => typeof window[k] === 'function').slice(0, 10));
+            }
+        });
+    </script>
     
     <!-- PWA Service Worker登録（オプション） -->
     <script>

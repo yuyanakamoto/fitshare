@@ -1,6 +1,7 @@
 // プロフィールページコンポーネント
 const ProfilePage = ({ 
   currentUser, 
+  viewingUser, // 表示するユーザー（他ユーザーの場合はこちらを使用）
   posts, 
   onImageClick, 
   onEdit, 
@@ -8,10 +9,65 @@ const ProfilePage = ({
   onLike, 
   connected 
 }) => {
-  // 現在のユーザーの投稿のみフィルタリング
+  
+  // 時刻表示関数（コンポーネント内で直接定義）
+  const formatTimestamp = (timestamp) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      
+      if (isNaN(date.getTime()) || isNaN(now.getTime())) {
+        return '時刻不明';
+      }
+      
+      // 日本時間ベースで時差を計算
+      const japanOffset = 9 * 60 * 60 * 1000;
+      const nowJST = new Date(now.getTime() + japanOffset);
+      const dateJST = new Date(date.getTime() + japanOffset);
+      
+      const diff = nowJST - dateJST;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return "たった今";
+      if (minutes < 60) return `${minutes}分前`;
+      if (hours < 24) return `${hours}時間前`;
+      if (days < 7) return `${days}日前`;
+      
+      // 古い投稿は日本時間で日時表示
+      try {
+        const japanTimeString = date.toLocaleString('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        return japanTimeString.replace(/(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{2}):(\d{2}).*/, '$1/$2/$3 $4:$5');
+      } catch (error) {
+        const japanDate = new Date(date.getTime() + japanOffset);
+        const year = japanDate.getUTCFullYear();
+        const month = japanDate.getUTCMonth() + 1;
+        const day = japanDate.getUTCDate();
+        const hour = japanDate.getUTCHours().toString().padStart(2, '0');
+        const minute = japanDate.getUTCMinutes().toString().padStart(2, '0');
+        return `${year}/${month}/${day} ${hour}:${minute}`;
+      }
+    } catch (error) {
+      console.error('formatTimestamp error:', error);
+      return '時刻エラー';
+    }
+  };
+  // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
+  const targetUser = viewingUser || currentUser;
+  const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
+  
+  // 対象ユーザーの投稿のみフィルタリング
   const userPosts = posts.filter(post => {
     const postUserId = typeof post.userId === 'object' ? post.userId._id : post.userId;
-    return postUserId === currentUser.id || post.user === currentUser.username;
+    return postUserId === targetUser.id || post.user === targetUser.username;
   });
 
   // BIG3の最大重量を計算
@@ -110,7 +166,7 @@ const ProfilePage = ({
           {
             className: "w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-2xl"
           },
-          currentUser.avatar
+          targetUser.avatar
         ),
         React.createElement(
           "div",
@@ -118,13 +174,19 @@ const ProfilePage = ({
           React.createElement(
             "h1",
             { className: "text-2xl font-bold text-gray-800" },
-            currentUser.username
+            targetUser.username
           ),
           React.createElement(
             "p",
             { className: "text-gray-600" },
             `総投稿数: ${userPosts.length}件`
-          )
+          ),
+          !isOwnProfile &&
+            React.createElement(
+              "p",
+              { className: "text-sm text-blue-600 mt-1" },
+              `${targetUser.username}さんのプロフィール`
+            )
         )
       )
     ),
@@ -253,28 +315,29 @@ const ProfilePage = ({
                   React.createElement(
                     "span",
                     { className: "text-sm text-gray-500" },
-                    formatTimestamp(post.workoutDate || post.timestamp)
+                    post.displayTime || formatTimestamp(post.workoutDate || post.timestamp)
                   ),
-                  React.createElement(
-                    "div",
-                    { className: "flex items-center space-x-2" },
+                  isOwnProfile &&
                     React.createElement(
-                      "button",
-                      {
-                        onClick: () => onEdit(post),
-                        className: "p-1 text-gray-500 hover:text-blue-500"
-                      },
-                      React.createElement(Edit, { className: "h-4 w-4" })
-                    ),
-                    React.createElement(
-                      "button",
-                      {
-                        onClick: () => onDelete(post._id || post.id),
-                        className: "p-1 text-gray-500 hover:text-red-500"
-                      },
-                      React.createElement(Trash, { className: "h-4 w-4" })
+                      "div",
+                      { className: "flex items-center space-x-2" },
+                      React.createElement(
+                        "button",
+                        {
+                          onClick: () => onEdit(post),
+                          className: "p-1 text-gray-500 hover:text-blue-500"
+                        },
+                        React.createElement(Edit, { className: "h-4 w-4" })
+                      ),
+                      React.createElement(
+                        "button",
+                        {
+                          onClick: () => onDelete(post._id || post.id),
+                          className: "p-1 text-gray-500 hover:text-red-500"
+                        },
+                        React.createElement(Trash, { className: "h-4 w-4" })
+                      )
                     )
-                  )
                 ),
                 
                 // 種目表示

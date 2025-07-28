@@ -475,10 +475,11 @@ app.get('/api/posts', async (req, res) => {
       .skip(skip)
       .lean();
     
-    // 画像URLの正規化
+    // 画像URLの正規化と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
       ...post,
-      image: post.image ? normalizeImageUrl(req, post.image) : null
+      image: post.image ? normalizeImageUrl(req, post.image) : null,
+      displayTime: calculateDisplayTime(post.timestamp)
     }));
     
     res.json(normalizedPosts);
@@ -487,6 +488,30 @@ app.get('/api/posts', async (req, res) => {
     res.status(500).json({ error: 'データの取得に失敗しました' });
   }
 });
+
+// 時刻表示計算の共通関数
+function calculateDisplayTime(timestamp) {
+  const originalDate = new Date(timestamp);
+  const now = new Date();
+  const diff = now - originalDate;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (minutes < 1) return "たった今";
+  if (minutes < 60) return `${minutes}分前`;
+  if (hours < 24) return `${hours}時間前`;
+  if (days < 7) return `${days}日前`;
+  
+  return originalDate.toLocaleString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(/(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{2}):(\d{2}).*/, '$1/$2/$3 $4:$5');
+}
 
 // 画像URLを正規化する関数
 function normalizeImageUrl(req, imagePath) {
@@ -599,9 +624,12 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     // populateして返す
     await newPost.populate('userId', 'username avatar');
     
-    // 画像URLを正規化
+    // 画像URLを正規化と表示時刻を計算
     const responsePost = newPost.toObject();
     responsePost.image = normalizeImageUrl(req, responsePost.image);
+    
+    // 新規投稿の表示時刻を計算
+    responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     io.emit('newPost', responsePost);
     res.json(responsePost);
@@ -710,6 +738,7 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
     
     const responsePost = post.toObject();
     responsePost.image = normalizeImageUrl(req, responsePost.image);
+    responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     io.emit('updatePost', responsePost);
     res.json(responsePost);
@@ -766,7 +795,7 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     }
     
     const userId = req.user.userId;
-    const userObjectId = mongoose.Types.ObjectId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
     const likedIndex = post.likedBy.findIndex(id => id.equals(userObjectId));
     
     if (likedIndex === -1) {
@@ -782,6 +811,7 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     
     const responsePost = post.toObject();
     responsePost.image = normalizeImageUrl(req, responsePost.image);
+    responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     io.emit('updatePost', responsePost);
     res.json(responsePost);
@@ -960,10 +990,11 @@ io.on('connection', async (socket) => {
       .limit(20)
       .lean();
     
-    // 画像URLの正規化
+    // 画像URLの正規化と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
       ...post,
-      image: post.image ? `/uploads/${path.basename(post.image)}` : null
+      image: post.image ? `/uploads/${path.basename(post.image)}` : null,
+      displayTime: calculateDisplayTime(post.timestamp)
     }));
     
     socket.emit('allPosts', normalizedPosts);

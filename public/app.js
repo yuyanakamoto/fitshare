@@ -18,6 +18,7 @@ const FitShareApp = () => {
   const [editingPost, setEditingPost] = React.useState(null);
   const [selectedImage, setSelectedImage] = React.useState(null);
   const [modalImage, setModalImage] = React.useState(null);
+  const [viewingUser, setViewingUser] = React.useState(null); // 他ユーザーのプロフィール表示用
 
   // 認証フォーム
   const [authData, setAuthData] = React.useState({
@@ -199,6 +200,13 @@ const FitShareApp = () => {
     localStorage.removeItem("fitShareToken");
     localStorage.removeItem("fitShareUser");
     setCurrentView("home");
+    setViewingUser(null);
+  };
+
+  // 他ユーザーのプロフィールを表示
+  const handleViewUserProfile = (user) => {
+    setViewingUser(user);
+    setCurrentView("profile");
   };
 
   // 投稿関連の処理
@@ -684,7 +692,10 @@ const FitShareApp = () => {
                 React.createElement(
                   "button",
                   {
-                    onClick: () => setCurrentView("profile"),
+                    onClick: () => {
+                      setCurrentView("profile");
+                      setViewingUser(null); // 自分のプロフィールを表示
+                    },
                     className: `px-3 py-1 rounded text-sm ${currentView === "profile" ? "bg-white text-blue-600" : "text-white hover:bg-blue-500"}`,
                   },
                   "プロフィール"
@@ -731,6 +742,7 @@ const FitShareApp = () => {
       currentView === "profile" && currentUser
         ? React.createElement(ProfilePage, {
             currentUser,
+            viewingUser,
             posts,
             onImageClick: setModalImage,
             onEdit: handleEdit,
@@ -828,7 +840,8 @@ const FitShareApp = () => {
               onLike: handleLike,
               onEdit: handleEdit,
               onDelete: handleDelete,
-              onImageClick: setModalImage
+              onImageClick: setModalImage,
+              onUserClick: handleViewUserProfile
             })
           )
     )

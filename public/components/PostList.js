@@ -1,5 +1,56 @@
 // 投稿リストコンポーネント
-const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick }) => {
+const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick, onUserClick }) => {
+  
+  // 時刻表示関数（コンポーネント内で直接定義）
+  const formatTimestamp = (timestamp) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      
+      if (isNaN(date.getTime()) || isNaN(now.getTime())) {
+        return '時刻不明';
+      }
+      
+      // 日本時間ベースで時差を計算
+      const japanOffset = 9 * 60 * 60 * 1000;
+      const nowJST = new Date(now.getTime() + japanOffset);
+      const dateJST = new Date(date.getTime() + japanOffset);
+      
+      const diff = nowJST - dateJST;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return "たった今";
+      if (minutes < 60) return `${minutes}分前`;
+      if (hours < 24) return `${hours}時間前`;
+      if (days < 7) return `${days}日前`;
+      
+      // 古い投稿は日本時間で日時表示
+      try {
+        const japanTimeString = date.toLocaleString('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        return japanTimeString.replace(/(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{2}):(\d{2}).*/, '$1/$2/$3 $4:$5');
+      } catch (error) {
+        const japanDate = new Date(date.getTime() + japanOffset);
+        const year = japanDate.getUTCFullYear();
+        const month = japanDate.getUTCMonth() + 1;
+        const day = japanDate.getUTCDate();
+        const hour = japanDate.getUTCHours().toString().padStart(2, '0');
+        const minute = japanDate.getUTCMinutes().toString().padStart(2, '0');
+        return `${year}/${month}/${day} ${hour}:${minute}`;
+      }
+    } catch (error) {
+      console.error('formatTimestamp error:', error);
+      return '時刻エラー';
+    }
+  };
   return React.createElement(
     "div",
     { className: "space-y-3" },
@@ -46,7 +97,18 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
               { className: "flex items-center justify-between mb-2" },
               React.createElement(
                 "h3",
-                { className: "font-semibold" },
+                { 
+                  className: "font-semibold cursor-pointer hover:text-blue-600 transition-colors",
+                  onClick: () => {
+                    if (onUserClick && typeof postUser === 'object') {
+                      onUserClick({
+                        id: postUser._id,
+                        username: postUser.username,
+                        avatar: postUser.avatar
+                      });
+                    }
+                  }
+                },
                 displayUser
               ),
               React.createElement(
@@ -55,7 +117,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
                 React.createElement(
                   "span",
                   { className: "text-xs text-gray-500" },
-                  formatTimestamp(post.workoutDate || post.timestamp)
+                  post.displayTime || formatTimestamp(post.workoutDate || post.timestamp)
                 ),
                 isOwner &&
                   React.createElement(

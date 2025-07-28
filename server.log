@@ -1,0 +1,19 @@
+
+> fitshare-backend@2.1.0 start
+> node server.js
+
+[dotenv@17.2.0] injecting env (5) from .env (tip: ⚙️  suppress all logs with { quiet: true })
+
+=====================================
+FitShare バックエンドサーバー
+=====================================
+ポート: 3001
+環境: production
+MongoDB: 接続待機中...
+URL: http://localhost:3001
+=====================================
+  
+MongoDBに接続しました
+新しいユーザーが接続しました: gosfA-5RRS_oEo2iAAAB
+ユーザーが切断しました: gosfA-5RRS_oEo2iAAAB
+新しいユーザーが接続しました: q5C0LSUonlSdiozFAAAD
