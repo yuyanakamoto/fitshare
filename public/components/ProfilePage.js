@@ -9,6 +9,8 @@ const ProfilePage = ({
   onLike, 
   connected 
 }) => {
+  // カレンダーの年月状態管理
+  const [calendarDate, setCalendarDate] = React.useState(() => new Date());
   
   // 時刻表示関数（コンポーネント内で直接定義）
   const formatTimestamp = (timestamp) => {
@@ -145,10 +147,33 @@ const ProfilePage = ({
     return days;
   };
 
+  // カレンダー関連の関数
+  const goToPreviousMonth = () => {
+    setCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() - 1);
+      return newDate;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  const goToCurrentMonth = () => {
+    setCalendarDate(new Date());
+  };
+
   const maxWeights = calculateMaxWeights();
-  const currentDate = new Date();
-  const calendarDays = generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+  const calendarDays = generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth());
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+  const currentDate = new Date();
+  const isCurrentMonth = calendarDate.getFullYear() === currentDate.getFullYear() && 
+                         calendarDate.getMonth() === currentDate.getMonth();
 
   return React.createElement(
     "div",
@@ -157,23 +182,23 @@ const ProfilePage = ({
     // ユーザー情報セクション
     React.createElement(
       "div",
-      { className: "bg-white rounded-xl shadow-md p-6" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
       React.createElement(
         "div",
         { className: "flex items-center space-x-4 mb-4" },
         React.createElement(
           "div",
           {
-            className: "w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-2xl"
+            className: "w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg"
           },
-          targetUser.avatar
+          targetUser.avatar || targetUser.username.charAt(0).toUpperCase()
         ),
         React.createElement(
           "div",
           {},
           React.createElement(
             "h1",
-            { className: "text-2xl font-bold text-gray-800" },
+            { className: "text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent" },
             targetUser.username
           ),
           React.createElement(
@@ -194,31 +219,31 @@ const ProfilePage = ({
     // BIG3最大重量セクション
     React.createElement(
       "div",
-      { className: "bg-white rounded-xl shadow-md p-6" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
       React.createElement(
         "h2",
-        { className: "text-xl font-bold mb-4 flex items-center" },
-        React.createElement(Dumbbell, { className: "h-5 w-5 mr-2" }),
+        { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
+        React.createElement(Dumbbell, { className: "h-6 w-6 mr-3 text-indigo-500" }),
         "BIG3 最大重量"
       ),
       React.createElement(
         "div",
-        { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
+        { className: "grid grid-cols-1 md:grid-cols-3 gap-6" },
         Object.entries(maxWeights).map(([exercise, weight]) =>
           React.createElement(
             "div",
             {
               key: exercise,
-              className: "bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200"
+              className: "bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300"
             },
             React.createElement(
               "h3",
-              { className: "font-semibold text-gray-800 mb-1" },
+              { className: "font-bold text-gray-800 mb-2 text-lg" },
               exercise
             ),
             React.createElement(
               "p",
-              { className: "text-2xl font-bold text-blue-600" },
+              { className: "text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
               weight > 0 ? `${weight}kg` : "記録なし"
             )
           )
@@ -229,12 +254,51 @@ const ProfilePage = ({
     // トレーニングカレンダーセクション
     React.createElement(
       "div",
-      { className: "bg-white rounded-xl shadow-md p-6" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
       React.createElement(
-        "h2",
-        { className: "text-xl font-bold mb-4 flex items-center" },
-        React.createElement(Calendar, { className: "h-5 w-5 mr-2" }),
-        `トレーニングカレンダー - ${currentDate.getFullYear()}年${monthNames[currentDate.getMonth()]}`
+        "div",
+        { className: "flex items-center justify-between mb-4" },
+        React.createElement(
+          "h2",
+          { className: "text-2xl font-bold flex items-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
+          React.createElement(Calendar, { className: "h-6 w-6 mr-3 text-indigo-500" }),
+          "トレーニングカレンダー"
+        ),
+        React.createElement(
+          "div",
+          { className: "flex items-center space-x-2" },
+          React.createElement(
+            "button",
+            {
+              onClick: goToPreviousMonth,
+              className: "p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors",
+              title: "前月"
+            },
+            React.createElement(ChevronLeft, { className: "h-4 w-4" })
+          ),
+          React.createElement(
+            "div",
+            { className: "text-lg font-semibold min-w-[120px] text-center" },
+            `${calendarDate.getFullYear()}年${monthNames[calendarDate.getMonth()]}`
+          ),
+          React.createElement(
+            "button",
+            {
+              onClick: goToNextMonth,  
+              className: "p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors",
+              title: "次月"
+            },
+            React.createElement(ChevronRight, { className: "h-4 w-4" })
+          ),
+          !isCurrentMonth && React.createElement(
+            "button",
+            {
+              onClick: goToCurrentMonth,
+              className: "ml-2 px-3 py-1 text-sm bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-full transition-colors"
+            },
+            "今月"
+          )
+        )
       ),
       React.createElement(
         "div",
@@ -286,11 +350,11 @@ const ProfilePage = ({
     // 過去の投稿一覧セクション
     React.createElement(
       "div",
-      { className: "bg-white rounded-xl shadow-md p-6" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
       React.createElement(
         "h2",
-        { className: "text-xl font-bold mb-4 flex items-center" },
-        React.createElement(MessageCircle, { className: "h-5 w-5 mr-2" }),
+        { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
+        React.createElement(MessageCircle, { className: "h-6 w-6 mr-3 text-indigo-500" }),
         "過去の投稿一覧"
       ),
       userPosts.length === 0 

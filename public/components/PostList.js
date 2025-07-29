@@ -76,7 +76,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
         "div",
         {
           key: post._id || post.id,
-          className: "bg-white rounded-xl shadow-md p-4",
+          className: "bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-6 hover-lift border border-gray-100",
         },
         React.createElement(
           "div",
@@ -85,9 +85,9 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
             "div",
             {
               className:
-                "w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold",
+                "w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg",
             },
-            displayAvatar
+            displayAvatar || displayUser.charAt(0).toUpperCase()
           ),
           React.createElement(
             "div",
@@ -98,7 +98,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
               React.createElement(
                 "h3",
                 { 
-                  className: "font-semibold cursor-pointer hover:text-blue-600 transition-colors",
+                  className: "font-bold text-lg cursor-pointer hover:text-indigo-600 transition-colors",
                   onClick: () => {
                     if (onUserClick && typeof postUser === 'object') {
                       onUserClick({
@@ -116,7 +116,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
                 { className: "flex items-center space-x-2" },
                 React.createElement(
                   "span",
-                  { className: "text-xs text-gray-500" },
+                  { className: "text-sm text-gray-500 font-medium bg-gray-100 px-3 py-1 rounded-full" },
                   post.displayTime || formatTimestamp(post.workoutDate || post.timestamp)
                 ),
                 isOwner &&

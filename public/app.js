@@ -639,22 +639,26 @@ const FitShareApp = () => {
   // メインUI
   return React.createElement(
     "div",
-    { className: "min-h-screen bg-gray-100 pb-20" },
+    { className: "min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 pb-20" },
     
-    // ヘッダー
+    // 洗練されたヘッダー
     React.createElement(
       "header",
-      { className: "bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-10" },
+      { className: "bg-white bg-opacity-95 backdrop-blur-md text-gray-800 p-4 shadow-xl sticky top-0 z-50 border-b border-gray-200" },
       React.createElement(
         "div",
         { className: "flex items-center justify-between" },
         React.createElement(
           "div",
-          { className: "flex items-center space-x-2" },
-          React.createElement(Dumbbell, { className: "h-6 w-6" }),
+          { className: "flex items-center space-x-3" },
+          React.createElement(
+            "div",
+            { className: "w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg" },
+            React.createElement(Dumbbell, { className: "h-5 w-5 text-white" })
+          ),
           React.createElement(
             "h1",
-            { className: "text-xl font-bold" },
+            { className: "text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
             "FitShare"
           )
         ),
@@ -664,8 +668,10 @@ const FitShareApp = () => {
           React.createElement(
             "div",
             {
-              className: `flex items-center space-x-1 ${
-                connected ? "text-green-300" : "text-red-300"
+              className: `flex items-center space-x-2 px-3 py-1 rounded-full ${
+                connected 
+                  ? "bg-green-100 text-green-700" 
+                  : "bg-red-100 text-red-700"
               }`,
             },
             connected
@@ -673,7 +679,7 @@ const FitShareApp = () => {
               : React.createElement(WifiOff, { className: "h-4 w-4" }),
             React.createElement(
               "span",
-              { className: "text-xs" },
+              { className: "text-xs font-medium" },
               connected ? "オンライン" : "オフライン"
             )
           ),
@@ -685,9 +691,18 @@ const FitShareApp = () => {
                   "button",
                   {
                     onClick: () => setCurrentView("home"),
-                    className: `px-3 py-1 rounded text-sm ${currentView === "home" ? "bg-white text-blue-600" : "text-white hover:bg-blue-500"}`,
+                    className: `px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      currentView === "home" 
+                        ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg" 
+                        : "text-gray-600 hover:bg-gray-100 hover:text-indigo-600"
+                    }`,
                   },
-                  "ホーム"
+                  React.createElement(
+                    "span",
+                    { className: "flex items-center space-x-1" },
+                    React.createElement(Home, { className: "h-4 w-4" }),
+                    React.createElement("span", {}, "ホーム")
+                  )
                 ),
                 React.createElement(
                   "button",
@@ -696,21 +711,39 @@ const FitShareApp = () => {
                       setCurrentView("profile");
                       setViewingUser(null); // 自分のプロフィールを表示
                     },
-                    className: `px-3 py-1 rounded text-sm ${currentView === "profile" ? "bg-white text-blue-600" : "text-white hover:bg-blue-500"}`,
+                    className: `px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      currentView === "profile" 
+                        ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg" 
+                        : "text-gray-600 hover:bg-gray-100 hover:text-indigo-600"
+                    }`,
                   },
-                  "プロフィール"
+                  React.createElement(
+                    "span",
+                    { className: "flex items-center space-x-1" },
+                    React.createElement(User, { className: "h-4 w-4" }),
+                    React.createElement("span", {}, "プロフィール")
+                  )
                 ),
                 React.createElement(
                   "div",
-                  { className: "text-sm" },
-                  "👤 ",
-                  currentUser.username
+                  { className: "flex items-center space-x-2 ml-4 pl-4 border-l border-gray-300" },
+                  React.createElement(
+                    "div",
+                    { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm" },
+                    currentUser.avatar || currentUser.username.charAt(0).toUpperCase()
+                  ),
+                  React.createElement(
+                    "span",
+                    { className: "text-sm font-medium text-gray-700" },
+                    currentUser.username
+                  )
                 ),
                 React.createElement(
                   "button",
                   {
                     onClick: handleLogout,
-                    className: "p-1",
+                    className: "p-2 ml-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200",
+                    title: "ログアウト"
                   },
                   React.createElement(LogOut, { className: "h-5 w-5" })
                 )
@@ -719,7 +752,7 @@ const FitShareApp = () => {
                 "button",
                 {
                   onClick: () => setShowAuthForm(true),
-                  className: "text-sm bg-white text-blue-600 px-3 py-1 rounded",
+                  className: "text-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105",
                 },
                 "ログイン"
               )
@@ -736,7 +769,7 @@ const FitShareApp = () => {
 
     React.createElement(
       "main",
-      { className: "px-4 py-4" },
+      { className: "px-6 py-8 max-w-4xl mx-auto" },
       
       // ビューの切り替え
       currentView === "profile" && currentUser
@@ -782,14 +815,14 @@ const FitShareApp = () => {
             }
           },
           className:
-            "w-full bg-blue-600 text-white rounded-xl p-4 mb-4 flex items-center justify-center space-x-2 shadow-lg active:scale-95 transition-transform",
+            "w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 mb-6 flex items-center justify-center space-x-3 shadow-xl hover:shadow-2xl active:scale-95 transition-all duration-300 hover:from-indigo-600 hover:to-purple-700 border border-indigo-200",
           disabled: !connected,
         },
         React.createElement(Plus, { className: "h-5 w-5" }),
         React.createElement(
           "span",
-          { className: "font-semibold" },
-          "トレーニングを記録"
+          { className: "font-semibold text-lg" },
+          "新しいワークアウトを記録"
         )
       ),
 
@@ -799,12 +832,25 @@ const FitShareApp = () => {
           "div",
           {
             className:
-              "bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-4",
+              "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-2xl mb-6 shadow-lg backdrop-blur-sm",
           },
           React.createElement(
-            "p",
-            { className: "text-sm" },
-            "サーバーに接続できません。接続を確認してください。"
+            "div",
+            { className: "flex items-center space-x-3" },
+            React.createElement(
+              "div",
+              { className: "w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center" },
+              React.createElement(
+                "span", 
+                { className: "text-white text-sm font-bold" },
+                "!"
+              )
+            ),
+            React.createElement(
+              "p",
+              { className: "text-sm font-medium" },
+              "サーバーに接続できません。接続を確認してください。"
+            )
           )
         ),
 

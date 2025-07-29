@@ -32,6 +32,8 @@ const Icon = ({ name, className = "" }) => {
       "M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M9 12l2 2 4-4",
     "chevron-down": "M6 9l6 6 6-6",
     "chevron-up": "M18 15l-6-6-6 6",
+    "chevron-left": "M15 18l-6-6 6-6",
+    "chevron-right": "M9 18l6-6-6-6",
     image:
       "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm12 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 8.5L6 8l4 4 2-2 3 3z",
   };
@@ -76,4 +78,6 @@ const Calendar = (props) => React.createElement(Icon, { name: "calendar", ...pro
 const Trophy = (props) => React.createElement(Icon, { name: "trophy", ...props });
 const ChevronDown = (props) => React.createElement(Icon, { name: "chevron-down", ...props });
 const ChevronUp = (props) => React.createElement(Icon, { name: "chevron-up", ...props });
+const ChevronLeft = (props) => React.createElement(Icon, { name: "chevron-left", ...props });
+const ChevronRight = (props) => React.createElement(Icon, { name: "chevron-right", ...props });
 const Image = (props) => React.createElement(Icon, { name: "image", ...props });
