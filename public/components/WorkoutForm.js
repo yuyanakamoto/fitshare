@@ -283,35 +283,49 @@ const WorkoutForm = ({
           )
       ),
 
-      // 画像アップロード（新規投稿時のみ）
-      !editingPost &&
+      // 画像アップロード
+      React.createElement(
+        "div",
+        {},
         React.createElement(
-          "div",
-          {},
-          React.createElement(
-            "label",
-            {
-              className:
-                "block text-sm font-medium mb-1 flex items-center",
-            },
-            React.createElement(Camera, {
-              className: "h-4 w-4 mr-1",
-            }),
-            "写真（任意）"
-          ),
-          React.createElement("input", {
-            type: "file",
-            accept: "image/*",
-            onChange: onImageSelect,
-            className: "w-full p-2 border rounded-lg text-sm",
+          "label",
+          {
+            className:
+              "block text-sm font-medium mb-1 flex items-center",
+          },
+          React.createElement(Camera, {
+            className: "h-4 w-4 mr-1",
           }),
-          selectedImage &&
+          editingPost ? "写真を変更（任意）" : "写真（任意）"
+        ),
+        React.createElement("input", {
+          type: "file",
+          accept: "image/*",
+          onChange: onImageSelect,
+          className: "w-full p-2 border rounded-lg text-sm",
+        }),
+        selectedImage &&
+          React.createElement(
+            "p",
+            { className: "text-sm text-gray-600 mt-1" },
+            `選択: ${selectedImage.name}`
+          ),
+        editingPost && editingPost.image && !selectedImage &&
+          React.createElement(
+            "div",
+            { className: "mt-2" },
             React.createElement(
               "p",
-              { className: "text-sm text-gray-600 mt-1" },
-              `選択: ${selectedImage.name}`
-            )
-        ),
+              { className: "text-sm text-gray-600 mb-1" },
+              "現在の画像:"
+            ),
+            React.createElement("img", {
+              src: editingPost.image,
+              alt: "現在の画像",
+              className: "w-32 h-32 object-cover rounded-lg border",
+            })
+          )
+      ),
 
       // コメント
       React.createElement(

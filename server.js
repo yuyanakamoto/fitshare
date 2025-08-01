@@ -665,7 +665,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
 });
 
 // 投稿の更新（改善版）
-app.put('/api/posts/:id', authenticateToken, async (req, res) => {
+app.put('/api/posts/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     
@@ -746,6 +746,23 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: '未来の日付は指定できません' });
       }
       post.workoutDate = workoutDate;
+    }
+    
+    // 画像の更新処理
+    if (req.file) {
+      // 古い画像ファイルを削除
+      if (post.image) {
+        const oldImagePath = path.join(__dirname, 'uploads', path.basename(post.image));
+        try {
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.warn('古い画像の削除に失敗:', error);
+        }
+      }
+      // 新しい画像を設定
+      post.image = req.file.filename;
     }
     
     await post.save();

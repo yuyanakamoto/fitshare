@@ -371,20 +371,23 @@ const FitShareApp = () => {
 
     validExercises.forEach(e => saveCustomExercise(e.exercise));
 
-    const payload = {
-      exercises: validExercises,
-      comment: formData.comment,
-      workoutDate: formData.workoutDate,
-    };
+    const formDataToSend = new FormData();
+    formDataToSend.append('exercises', JSON.stringify(validExercises));
+    formDataToSend.append('comment', formData.comment);
+    formDataToSend.append('workoutDate', formData.workoutDate);
+    
+    // 画像が選択されている場合は追加
+    if (selectedImage) {
+      formDataToSend.append('image', selectedImage);
+    }
 
     try {
       const res = await fetch(`${SERVER_URL}/api/posts/${editingPost._id || editingPost.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify(payload),
+        body: formDataToSend,
       });
 
       if (!res.ok) {
@@ -489,6 +492,7 @@ const FitShareApp = () => {
         .split("T")[0],
     });
     setShowCustomInput((post.exercises ?? [post]).map(() => false));
+    setSelectedImage(null); // 編集時は新しい画像が選択されるまでnull
     setShowForm(true);
   };
 
