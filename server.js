@@ -83,7 +83,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB制限
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB制限
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -945,7 +945,7 @@ app.get('/api/users/:userId', authenticateToken, async (req, res) => {
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'ファイルサイズが大きすぎます（5MB以下にしてください）' });
+      return res.status(400).json({ error: 'ファイルサイズが大きすぎます（15MB以下にしてください）' });
     }
     return res.status(400).json({ error: `ファイルアップロードエラー: ${error.message}` });
   }

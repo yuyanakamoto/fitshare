@@ -432,10 +432,10 @@ const FitShareApp = () => {
   // その他のハンドラー
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 5 * 1024 * 1024) {
+    if (file && file.size <= 15 * 1024 * 1024) {
       setSelectedImage(file);
     } else {
-      alert("画像は5MB以下にしてください");
+      alert("画像は15MB以下にしてください");
     }
   };
 
