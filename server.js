@@ -475,10 +475,10 @@ app.get('/api/posts', async (req, res) => {
       .skip(skip)
       .lean();
     
-    // 画像URLの正規化と日本時間タイムスタンプの追加
+    // 画像URLの相対パス変換と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
       ...post,
-      image: post.image ? normalizeImageUrl(req, post.image) : null,
+      image: getImagePath(post.image),
       displayTime: calculateDisplayTime(post.timestamp)
     }));
     
@@ -513,20 +513,13 @@ function calculateDisplayTime(timestamp) {
   }).replace(/(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{2}):(\d{2}).*/, '$1/$2/$3 $4:$5');
 }
 
-// 画像URLを正規化する関数
-function normalizeImageUrl(req, imagePath) {
+// 画像パスを相対パスに変換する関数（既存データ対応）
+function getImagePath(imagePath) {
   if (!imagePath) return null;
-  
-  // 既に完全なURLの場合はそのまま返す
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // 相対パスの場合は完全なURLに変換
-  const protocol = req.protocol;
-  const host = req.get('host');
-  const cleanPath = imagePath.startsWith('/') ? imagePath : '/' + imagePath;
-  return `${protocol}://${host}${cleanPath}`;
+  // 既に'/uploads/'で始まっている場合はそのまま
+  if (imagePath.startsWith('/uploads/')) return imagePath;
+  // ファイル名のみの場合は'/uploads/'を付ける
+  return `/uploads/${imagePath}`;
 }
 
 // 新規投稿（複数種目対応版）
@@ -630,7 +623,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     
     // 画像がある場合
     if (req.file) {
-      postData.image = `/uploads/${req.file.filename}`;
+      postData.image = req.file.filename; // ファイル名のみ保存
     }
     
     const newPost = new Post(postData);
@@ -639,9 +632,9 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     // populateして返す
     await newPost.populate('userId', 'username avatar');
     
-    // 画像URLを正規化と表示時刻を計算
+    // 画像URLを相対パスに変換と表示時刻を計算
     const responsePost = newPost.toObject();
-    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    responsePost.image = getImagePath(responsePost.image);
     
     // 新規投稿の表示時刻を計算
     responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
@@ -762,14 +755,14 @@ app.put('/api/posts/:id', authenticateToken, upload.single('image'), async (req,
         }
       }
       // 新しい画像を設定
-      post.image = req.file.filename;
+      post.image = req.file.filename; // ファイル名のみ保存
     }
     
     await post.save();
     await post.populate('userId', 'username avatar');
     
     const responsePost = post.toObject();
-    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    responsePost.image = getImagePath(responsePost.image);
     responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     io.emit('updatePost', responsePost);
@@ -842,7 +835,7 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     await post.populate('userId', 'username avatar');
     
     const responsePost = post.toObject();
-    responsePost.image = normalizeImageUrl(req, responsePost.image);
+    responsePost.image = getImagePath(responsePost.image);
     responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     io.emit('updatePost', responsePost);
@@ -1022,10 +1015,10 @@ io.on('connection', async (socket) => {
       .limit(20)
       .lean();
     
-    // 画像URLの正規化と日本時間タイムスタンプの追加
+    // 画像URLの相対パス変換と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
       ...post,
-      image: post.image ? `/uploads/${path.basename(post.image)}` : null,
+      image: getImagePath(post.image),
       displayTime: calculateDisplayTime(post.timestamp)
     }));
     
