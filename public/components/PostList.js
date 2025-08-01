@@ -53,7 +53,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
   };
   return React.createElement(
     "div",
-    { className: "space-y-3" },
+    { className: "space-y-3 sm:space-y-4" },
     posts.map((post) => {
       const postUser = post.userId || post.user;
       const isOwner =
@@ -76,7 +76,7 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
         "div",
         {
           key: post._id || post.id,
-          className: "bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-6 hover-lift border border-gray-100",
+          className: "bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 hover-lift border border-gray-100",
         },
         React.createElement(
           "div",

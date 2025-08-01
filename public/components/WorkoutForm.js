@@ -196,7 +196,8 @@ const WorkoutForm = ({
                   ),
                   React.createElement("input", {
                     type: "number",
-                    inputMode: "numeric",
+                    inputMode: "decimal",
+                    step: "0.1",
                     value: set.weight,
                     onChange: (e) =>
                       onUpdateSet(

@@ -664,25 +664,7 @@ const FitShareApp = () => {
         ),
         React.createElement(
           "div",
-          { className: "flex items-center space-x-3" },
-          React.createElement(
-            "div",
-            {
-              className: `flex items-center space-x-2 px-3 py-1 rounded-full ${
-                connected 
-                  ? "bg-green-100 text-green-700" 
-                  : "bg-red-100 text-red-700"
-              }`,
-            },
-            connected
-              ? React.createElement(Wifi, { className: "h-4 w-4" })
-              : React.createElement(WifiOff, { className: "h-4 w-4" }),
-            React.createElement(
-              "span",
-              { className: "text-xs font-medium" },
-              connected ? "オンライン" : "オフライン"
-            )
-          ),
+          { className: "flex items-center space-x-2" },
           currentUser
             ? React.createElement(
                 "div",
@@ -691,7 +673,7 @@ const FitShareApp = () => {
                   "button",
                   {
                     onClick: () => setCurrentView("home"),
-                    className: `px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className: `px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                       currentView === "home" 
                         ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg" 
                         : "text-gray-600 hover:bg-gray-100 hover:text-indigo-600"
@@ -701,7 +683,7 @@ const FitShareApp = () => {
                     "span",
                     { className: "flex items-center space-x-1" },
                     React.createElement(Home, { className: "h-4 w-4" }),
-                    React.createElement("span", {}, "ホーム")
+                    React.createElement("span", { className: "hidden sm:block" }, "ホーム")
                   )
                 ),
                 React.createElement(
@@ -711,7 +693,7 @@ const FitShareApp = () => {
                       setCurrentView("profile");
                       setViewingUser(null); // 自分のプロフィールを表示
                     },
-                    className: `px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className: `px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                       currentView === "profile" 
                         ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg" 
                         : "text-gray-600 hover:bg-gray-100 hover:text-indigo-600"
@@ -721,12 +703,12 @@ const FitShareApp = () => {
                     "span",
                     { className: "flex items-center space-x-1" },
                     React.createElement(User, { className: "h-4 w-4" }),
-                    React.createElement("span", {}, "プロフィール")
+                    React.createElement("span", { className: "hidden sm:block" }, "プロフィール")
                   )
                 ),
                 React.createElement(
                   "div",
-                  { className: "flex items-center space-x-2 ml-4 pl-4 border-l border-gray-300" },
+                  { className: "flex items-center space-x-2 ml-2 pl-2 sm:ml-4 sm:pl-4 border-l border-gray-300" },
                   React.createElement(
                     "div",
                     { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm" },
@@ -734,7 +716,7 @@ const FitShareApp = () => {
                   ),
                   React.createElement(
                     "span",
-                    { className: "text-sm font-medium text-gray-700" },
+                    { className: "text-sm font-medium text-gray-700 hidden sm:block" },
                     currentUser.username
                   )
                 ),
@@ -742,7 +724,7 @@ const FitShareApp = () => {
                   "button",
                   {
                     onClick: handleLogout,
-                    className: "p-2 ml-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200",
+                    className: "p-2 ml-1 sm:ml-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200",
                     title: "ログアウト"
                   },
                   React.createElement(LogOut, { className: "h-5 w-5" })
@@ -752,7 +734,7 @@ const FitShareApp = () => {
                 "button",
                 {
                   onClick: () => setShowAuthForm(true),
-                  className: "text-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105",
+                  className: "text-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 sm:px-6 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105",
                 },
                 "ログイン"
               )
@@ -769,7 +751,7 @@ const FitShareApp = () => {
 
     React.createElement(
       "main",
-      { className: "px-6 py-8 max-w-4xl mx-auto" },
+      { className: "px-4 sm:px-6 py-4 sm:py-8 max-w-4xl mx-auto" },
       
       // ビューの切り替え
       currentView === "profile" && currentUser
@@ -815,13 +797,13 @@ const FitShareApp = () => {
             }
           },
           className:
-            "w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 mb-6 flex items-center justify-center space-x-3 shadow-xl hover:shadow-2xl active:scale-95 transition-all duration-300 hover:from-indigo-600 hover:to-purple-700 border border-indigo-200",
+            "w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center space-x-3 shadow-xl hover:shadow-2xl active:scale-95 transition-all duration-300 hover:from-indigo-600 hover:to-purple-700 border border-indigo-200",
           disabled: !connected,
         },
         React.createElement(Plus, { className: "h-5 w-5" }),
         React.createElement(
           "span",
-          { className: "font-semibold text-lg" },
+          { className: "font-semibold text-base sm:text-lg" },
           "新しいワークアウトを記録"
         )
       ),
@@ -832,7 +814,7 @@ const FitShareApp = () => {
           "div",
           {
             className:
-              "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-2xl mb-6 shadow-lg backdrop-blur-sm",
+              "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl mb-4 sm:mb-6 shadow-lg backdrop-blur-sm",
           },
           React.createElement(
             "div",

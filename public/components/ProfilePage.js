@@ -177,12 +177,12 @@ const ProfilePage = ({
 
   return React.createElement(
     "div",
-    { className: "space-y-6" },
+    { className: "space-y-4 sm:space-y-6" },
     
     // ユーザー情報セクション
     React.createElement(
       "div",
-      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
       React.createElement(
         "div",
         { className: "flex items-center space-x-4 mb-4" },
@@ -219,7 +219,7 @@ const ProfilePage = ({
     // BIG3最大重量セクション
     React.createElement(
       "div",
-      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
       React.createElement(
         "h2",
         { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
@@ -254,7 +254,7 @@ const ProfilePage = ({
     // トレーニングカレンダーセクション
     React.createElement(
       "div",
-      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
       React.createElement(
         "div",
         { className: "flex items-center justify-between mb-4" },
@@ -350,7 +350,7 @@ const ProfilePage = ({
     // 過去の投稿一覧セクション
     React.createElement(
       "div",
-      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-8 hover-lift border border-gray-100" },
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
       React.createElement(
         "h2",
         { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
