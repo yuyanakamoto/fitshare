@@ -248,24 +248,49 @@ const postSchema = new mongoose.Schema({
       required: true,
       trim: true
     },
-    sets: [{
-      weight: {
-        type: Number,
-        required: true,
-        min: 0
-      },
-      reps: {
-        type: Number,
-        required: true,
-        min: 0
+    sets: {
+      type: [{
+        // ウェイトトレーニング用フィールド
+        weight: {
+          type: Number,
+          min: 0
+        },
+        reps: {
+          type: Number,
+          min: 0
+        },
+        // 有酸素運動用フィールド
+        distance: {
+          type: Number,
+          min: 0
+        },
+        time: {
+          type: String,
+          match: /^\d+:\d{2}$/
+        }
+      }],
+      validate: {
+        validator: function(sets) {
+          return sets.every(set => {
+            // ウェイトトレーニング形式（weight と reps が両方ある）
+            const isWeightTraining = set.weight !== undefined && set.reps !== undefined;
+            // 有酸素運動形式（distance と time が両方ある）
+            const isCardio = set.distance !== undefined && set.time !== undefined;
+            
+            return isWeightTraining || isCardio;
+          });
+        },
+        message: 'セットデータは重量+回数、または距離+時間の形式である必要があります'
       }
-    }]
+    }
   }],
   // 後方互換性のため残す
   exercise: String,
   sets: [{
     weight: Number,
-    reps: Number
+    reps: Number,
+    distance: Number,
+    time: String
   }],
   weight: Number,
   reps: Number,
