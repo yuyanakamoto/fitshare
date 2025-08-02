@@ -99,7 +99,7 @@ const FitShareApp = () => {
       );
     });
 
-    fetch(`${SERVER_URL}/api/posts`)
+    fetch(`${SERVER_URL}/api/posts?limit=100`)
       .then((res) => res.json())
       .then((data) => setPosts(data))
       .catch((err) => console.error("投稿の取得に失敗しました:", err));
