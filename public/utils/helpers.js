@@ -120,14 +120,18 @@ const exercisesByBodyPart = {
     "レッグカール",
     "カーフレイズ"
   ],
-  "腹筋・体幹": [
-    "レッグレイズ",
-    "アブドミナルクランチ",
-  ],
   "有酸素運動": [
     "ランニング",
     "ウォーキング",
     "エアロバイク",
+  ],
+  "自重トレーニング": [
+    "腕立て伏せ",
+    "懸垂",
+    "腹筋",
+    "チンニング",
+    "ディップス",
+    "スクワット（自重）",
   ]
 };
 
@@ -137,6 +141,11 @@ const defaultExercises = Object.values(exercisesByBodyPart).flat();
 // 有酸素運動かどうかを判定する関数
 const isCardioExercise = (exerciseName) => {
   return exercisesByBodyPart["有酸素運動"].includes(exerciseName);
+};
+
+// 自重トレーニングかどうかを判定する関数
+const isBodyweightExercise = (exerciseName) => {
+  return exercisesByBodyPart["自重トレーニング"].includes(exerciseName);
 };
 
 // ペース（分/km）を計算する関数
@@ -169,6 +178,7 @@ const minutesToTimeString = (totalMinutes) => {
 window.defaultExercises = defaultExercises;
 window.exercisesByBodyPart = exercisesByBodyPart;
 window.isCardioExercise = isCardioExercise;
+window.isBodyweightExercise = isBodyweightExercise;
 window.calculatePace = calculatePace;
 window.timeStringToMinutes = timeStringToMinutes;
 window.minutesToTimeString = minutesToTimeString;

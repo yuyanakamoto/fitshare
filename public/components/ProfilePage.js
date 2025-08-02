@@ -591,10 +591,16 @@ const ProfilePage = ({
                   const newExercises = [...formData.exercises];
                   const exerciseName = newExercises[exerciseIndex].exercise;
                   const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+                  const isBodyweight = window.isBodyweightExercise && window.isBodyweightExercise(exerciseName);
                   
-                  const newSet = isCardio 
-                    ? { distance: "", time: "" }
-                    : { weight: "", reps: "" };
+                  let newSet;
+                  if (isCardio) {
+                    newSet = { distance: "", time: "" };
+                  } else if (isBodyweight) {
+                    newSet = { bodyweight: "", reps: "" };
+                  } else {
+                    newSet = { weight: "", reps: "" };
+                  }
                   
                   newExercises[exerciseIndex].sets.push(newSet);
                   setFormData({ ...formData, exercises: newExercises });

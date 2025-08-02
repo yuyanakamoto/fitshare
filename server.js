@@ -267,6 +267,11 @@ const postSchema = new mongoose.Schema({
         time: {
           type: String,
           match: /^\d+:\d{2}$/
+        },
+        // 自重トレーニング用フィールド
+        bodyweight: {
+          type: Number,
+          min: 0
         }
       }],
       validate: {
@@ -276,11 +281,13 @@ const postSchema = new mongoose.Schema({
             const isWeightTraining = set.weight !== undefined && set.reps !== undefined;
             // 有酸素運動形式（distance と time が両方ある）
             const isCardio = set.distance !== undefined && set.time !== undefined;
+            // 自重トレーニング形式（bodyweight と reps が両方ある）
+            const isBodyweight = set.bodyweight !== undefined && set.reps !== undefined;
             
-            return isWeightTraining || isCardio;
+            return isWeightTraining || isCardio || isBodyweight;
           });
         },
-        message: 'セットデータは重量+回数、または距離+時間の形式である必要があります'
+        message: 'セットデータは重量+回数、距離+時間、または自重+回数の形式である必要があります'
       }
     }
   }],

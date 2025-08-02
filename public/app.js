@@ -684,11 +684,17 @@ const FitShareApp = () => {
     const newExercises = [...formData.exercises];
     const exerciseName = newExercises[exerciseIndex].exercise;
     const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+    const isBodyweight = window.isBodyweightExercise && window.isBodyweightExercise(exerciseName);
     
-    // 有酸素運動とウェイトトレーニングで異なるデフォルト値を設定
-    const newSet = isCardio 
-      ? { distance: "", time: "" }
-      : { weight: "", reps: "" };
+    // 種目タイプに応じて異なるデフォルト値を設定
+    let newSet;
+    if (isCardio) {
+      newSet = { distance: "", time: "" };
+    } else if (isBodyweight) {
+      newSet = { bodyweight: "", reps: "" };
+    } else {
+      newSet = { weight: "", reps: "" };
+    }
     
     newExercises[exerciseIndex].sets.push(newSet);
     setFormData({ ...formData, exercises: newExercises });

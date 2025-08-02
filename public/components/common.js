@@ -50,20 +50,32 @@ const ImageModal = ({ imageUrl, onClose }) => {
 // 複数種目表示用コンポーネント
 const ExerciseBlock = ({ ex }) => {
   const isCardio = window.isCardioExercise && window.isCardioExercise(ex.exercise);
+  const isBodyweight = window.isBodyweightExercise && window.isBodyweightExercise(ex.exercise);
+  
+  let className;
+  if (isCardio) {
+    className = "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-2 border border-green-200";
+  } else if (isBodyweight) {
+    className = "bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-3 mb-2 border border-orange-200";
+  } else {
+    className = "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-2";
+  }
   
   return React.createElement(
     "div",
-    {
-      className: isCardio 
-        ? "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-2 border border-green-200"
-        : "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-2",
-    },
+    { className },
     React.createElement(
       "div",
       { className: "mb-2" },
       React.createElement(
         "span", 
-        { className: isCardio ? "font-semibold text-green-700" : "font-semibold" }, 
+        { 
+          className: isCardio 
+            ? "font-semibold text-green-700" 
+            : isBodyweight 
+              ? "font-semibold text-orange-700" 
+              : "font-semibold" 
+        }, 
         ex.exercise
       )
     ),
@@ -77,7 +89,13 @@ const ExerciseBlock = ({ ex }) => {
               { key: index, className: "flex items-center space-x-2 text-sm" },
               React.createElement(
                 "span",
-                { className: isCardio ? "font-medium text-green-600 w-16" : "font-medium text-gray-600 w-16" },
+                { 
+                  className: isCardio 
+                    ? "font-medium text-green-600 w-16" 
+                    : isBodyweight 
+                      ? "font-medium text-orange-600 w-16" 
+                      : "font-medium text-gray-600 w-16" 
+                },
                 `${index + 1}${isCardio ? '回目:' : 'セット:'}`
               ),
               isCardio ? 
@@ -103,6 +121,13 @@ const ExerciseBlock = ({ ex }) => {
                     `${distance}km ${timeString}${paceDisplay}`
                   );
                 })()
+              : isBodyweight ?
+                // 自重トレーニングの表示（体重・回数）
+                React.createElement(
+                  "span",
+                  { className: "font-bold text-orange-600" },
+                  `${set.bodyweight}kg × ${set.reps}回`
+                )
               :
                 // ウェイトトレーニングの表示（重量・回数）
                 React.createElement(

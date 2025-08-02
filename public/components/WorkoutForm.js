@@ -44,7 +44,15 @@ const WorkoutForm = ({
         post.exercises.forEach(exercise => {
           if (exercise.exercise === exerciseName && exercise.sets) {
             exercise.sets.forEach(set => {
-              const load = set.weight * set.reps;
+              let load = 0;
+              if (set.weight !== undefined && set.reps !== undefined) {
+                // ウェイトトレーニング
+                load = set.weight * set.reps;
+              } else if (set.bodyweight !== undefined && set.reps !== undefined) {
+                // 自重トレーニング
+                load = set.bodyweight * set.reps;
+              }
+              
               if (load > maxLoad) {
                 maxLoad = load;
                 maxSet = set;
@@ -56,7 +64,15 @@ const WorkoutForm = ({
       // 旧形式（単一種目）
       else if (post.exercise === exerciseName && post.sets) {
         post.sets.forEach(set => {
-          const load = set.weight * set.reps;
+          let load = 0;
+          if (set.weight !== undefined && set.reps !== undefined) {
+            // ウェイトトレーニング
+            load = set.weight * set.reps;
+          } else if (set.bodyweight !== undefined && set.reps !== undefined) {
+            // 自重トレーニング
+            load = set.bodyweight * set.reps;
+          }
+          
           if (load > maxLoad) {
             maxLoad = load;
             maxSet = set;
@@ -65,7 +81,14 @@ const WorkoutForm = ({
       }
     });
 
-    return maxSet ? { weight: maxSet.weight, reps: maxSet.reps } : null;
+    if (maxSet) {
+      if (maxSet.weight !== undefined) {
+        return { weight: maxSet.weight, reps: maxSet.reps };
+      } else if (maxSet.bodyweight !== undefined) {
+        return { bodyweight: maxSet.bodyweight, reps: maxSet.reps };
+      }
+    }
+    return null;
   };
   return React.createElement(
     "div",
@@ -172,7 +195,8 @@ const WorkoutForm = ({
                   "脚（ハムストリング・臀部）": "🍑",
                   "脚（ふくらはぎ）": "🦶",
                   "腹筋・体幹": "🔥",
-                  "有酸素運動": "🏃"
+                  "有酸素運動": "🏃",
+                  "自重トレーニング": "🤸"
                 };
                 return React.createElement(
                   "optgroup",
@@ -230,7 +254,9 @@ const WorkoutForm = ({
                       className: "text-xs text-gray-500 mb-2 px-1",
                       style: { fontSize: "12px" }
                     },
-                    `MAX: ${maxRecord.weight}kg×${maxRecord.reps}回`
+                    maxRecord.weight !== undefined 
+                      ? `MAX: ${maxRecord.weight}kg×${maxRecord.reps}回`
+                      : `MAX: ${maxRecord.bodyweight}kg×${maxRecord.reps}回（自重）`
                   );
                 }
                 return null;
@@ -288,7 +314,7 @@ const WorkoutForm = ({
                 required: true,
               }),
 
-            // セット入力（有酸素運動とウェイトトレーニングで分岐）
+            // セット入力（有酸素運動、自重トレーニング、ウェイトトレーニングで分岐）
             window.isCardioExercise && window.isCardioExercise(exerciseData.exercise) ?
               // 有酸素運動用の入力フィールド
               React.createElement(
@@ -430,6 +456,126 @@ const WorkoutForm = ({
                     className: "h-4 w-4",
                   }),
                   React.createElement("span", {}, "記録を追加")
+                )
+              )
+            : window.isBodyweightExercise && window.isBodyweightExercise(exerciseData.exercise) ?
+              // 自重トレーニング用の入力フィールド
+              React.createElement(
+                "div",
+                { className: "space-y-3 bg-orange-50 p-3 rounded-lg border border-orange-200" },
+                React.createElement(
+                  "div",
+                  { className: "text-sm font-medium text-orange-700 mb-2" },
+                  "自重トレーニング"
+                ),
+                exerciseData.sets.map((set, setIndex) =>
+                  React.createElement(
+                    "div",
+                    {
+                      key: setIndex,
+                      className: "space-y-3 border border-orange-300 rounded-lg p-3 bg-white",
+                    },
+                    // セット番号
+                    React.createElement(
+                      "div",
+                      { className: "flex items-center justify-between" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm font-medium text-orange-700" },
+                        `${setIndex + 1}セット目`
+                      )
+                    ),
+                    // 体重入力（自重の場合は体重を記録）
+                    React.createElement(
+                      "div",
+                      { className: "flex items-center space-x-2" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm w-12 text-orange-700" },
+                        "体重"
+                      ),
+                      React.createElement("input", {
+                        type: "number",
+                        inputMode: "decimal",
+                        step: "0.1",
+                        value: set.bodyweight || "",
+                        onChange: (e) =>
+                          onUpdateSet(
+                            exerciseIndex,
+                            setIndex,
+                            "bodyweight",
+                            e.target.value
+                          ),
+                        className:
+                          "flex-1 p-2 border rounded-lg text-base text-center",
+                        placeholder: "60.0",
+                      }),
+                      React.createElement(
+                        "span",
+                        { className: "text-sm text-orange-700" },
+                        "kg"
+                      )
+                    ),
+                    // 回数入力
+                    React.createElement(
+                      "div",
+                      { className: "flex items-center space-x-2" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm w-12 text-orange-700" },
+                        "回数"
+                      ),
+                      React.createElement("input", {
+                        type: "number",
+                        inputMode: "numeric",
+                        value: set.reps || "",
+                        onChange: (e) =>
+                          onUpdateSet(
+                            exerciseIndex,
+                            setIndex,
+                            "reps",
+                            e.target.value
+                          ),
+                        className:
+                          "flex-1 p-2 border rounded-lg text-base text-center",
+                        placeholder: "10",
+                      }),
+                      React.createElement(
+                        "span",
+                        { className: "text-sm text-orange-700" },
+                        "回"
+                      )
+                    ),
+                    // 削除ボタン
+                    exerciseData.sets.length > 1 &&
+                      React.createElement(
+                        "div",
+                        { className: "flex justify-end" },
+                        React.createElement(
+                          "button",
+                          {
+                            onClick: () =>
+                              onRemoveSet(exerciseIndex, setIndex),
+                            className: "p-1 text-red-500 hover:text-red-700",
+                          },
+                          React.createElement(MinusCircle, {
+                            className: "h-5 w-5",
+                          })
+                        )
+                      )
+                  )
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    onClick: () => onAddSet(exerciseIndex),
+                    className:
+                      "mt-2 w-full flex items-center justify-center space-x-1 text-orange-600 text-sm py-2 border border-orange-300 rounded-lg hover:bg-orange-50",
+                  },
+                  React.createElement(PlusCircle, {
+                    className: "h-4 w-4",
+                  }),
+                  React.createElement("span", {}, "セットを追加")
                 )
               )
             :
