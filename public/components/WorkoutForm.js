@@ -288,94 +288,239 @@ const WorkoutForm = ({
                 required: true,
               }),
 
-            // セット入力
-            React.createElement(
-              "div",
-              { className: "space-y-2" },
-              exerciseData.sets.map((set, setIndex) =>
+            // セット入力（有酸素運動とウェイトトレーニングで分岐）
+            window.isCardioExercise && window.isCardioExercise(exerciseData.exercise) ?
+              // 有酸素運動用の入力フィールド
+              React.createElement(
+                "div",
+                { className: "space-y-3 bg-green-50 p-3 rounded-lg border border-green-200" },
                 React.createElement(
                   "div",
-                  {
-                    key: setIndex,
-                    className: "flex items-center space-x-2",
-                  },
+                  { className: "text-sm font-medium text-green-700 mb-2" },
+                  "有酸素運動"
+                ),
+                exerciseData.sets.map((set, setIndex) =>
                   React.createElement(
-                    "span",
-                    { className: "text-sm w-12" },
-                    `${setIndex + 1}セット`
-                  ),
-                  React.createElement("input", {
-                    type: "number",
-                    inputMode: "decimal",
-                    step: "0.1",
-                    value: set.weight,
-                    onChange: (e) =>
-                      onUpdateSet(
-                        exerciseIndex,
-                        setIndex,
-                        "weight",
-                        e.target.value
-                      ),
-                    onFocus: () =>
-                      setIndex > 0 &&
-                      !set.weight &&
-                      onCopyPreviousWeight(exerciseIndex, setIndex),
-                    className:
-                      "w-20 p-2 border rounded-lg text-base text-center",
-                    placeholder: "重量",
-                  }),
-                  React.createElement(
-                    "span",
-                    { className: "text-sm" },
-                    "kg ×"
-                  ),
-                  React.createElement("input", {
-                    type: "number",
-                    inputMode: "numeric",
-                    value: set.reps,
-                    onChange: (e) =>
-                      onUpdateSet(
-                        exerciseIndex,
-                        setIndex,
-                        "reps",
-                        e.target.value
-                      ),
-                    className:
-                      "w-20 p-2 border rounded-lg text-base text-center",
-                    placeholder: "回数",
-                  }),
-                  React.createElement(
-                    "span",
-                    { className: "text-sm" },
-                    "回"
-                  ),
-                  exerciseData.sets.length > 1 &&
+                    "div",
+                    {
+                      key: setIndex,
+                      className: "space-y-3 border border-green-300 rounded-lg p-3 bg-white",
+                    },
+                    // セット番号とペース表示
                     React.createElement(
-                      "button",
-                      {
-                        onClick: () =>
-                          onRemoveSet(exerciseIndex, setIndex),
-                        className: "p-1 text-red-500",
-                      },
-                      React.createElement(MinusCircle, {
-                        className: "h-5 w-5",
-                      })
-                    )
+                      "div",
+                      { className: "flex items-center justify-between" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm font-medium text-green-700" },
+                        `${setIndex + 1}回目`
+                      ),
+                      (() => {
+                        const distance = parseFloat(set.distance || 0);
+                        const timeString = set.time || "";
+                        const totalMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(timeString) : 0;
+                        
+                        if (distance > 0 && totalMinutes > 0) {
+                          const pace = window.calculatePace ? window.calculatePace(distance, totalMinutes) : null;
+                          if (pace) {
+                            const paceMin = Math.floor(pace);
+                            const paceSec = Math.round((pace - paceMin) * 60);
+                            return React.createElement(
+                              "span",
+                              { className: "text-xs text-green-600 font-medium" },
+                              `ペース: ${paceMin}:${paceSec.toString().padStart(2, '0')}/km`
+                            );
+                          }
+                        }
+                        return React.createElement(
+                          "span",
+                          { className: "text-xs text-gray-400" },
+                          "ペース: --:--/km"
+                        );
+                      })()
+                    ),
+                    // 距離入力
+                    React.createElement(
+                      "div",
+                      { className: "flex items-center space-x-2" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm w-12 text-green-700" },
+                        "距離"
+                      ),
+                      React.createElement("input", {
+                        type: "number",
+                        inputMode: "decimal",
+                        step: "0.1",
+                        value: set.distance || "",
+                        onChange: (e) =>
+                          onUpdateSet(
+                            exerciseIndex,
+                            setIndex,
+                            "distance",
+                            e.target.value
+                          ),
+                        className:
+                          "flex-1 p-2 border rounded-lg text-base text-center",
+                        placeholder: "0.0",
+                      }),
+                      React.createElement(
+                        "span",
+                        { className: "text-sm text-green-700" },
+                        "km"
+                      )
+                    ),
+                    // 時間入力
+                    React.createElement(
+                      "div",
+                      { className: "flex items-center space-x-2" },
+                      React.createElement(
+                        "span",
+                        { className: "text-sm w-12 text-green-700" },
+                        "時間"
+                      ),
+                      React.createElement("input", {
+                        type: "text",
+                        value: set.time || "",
+                        onChange: (e) =>
+                          onUpdateSet(
+                            exerciseIndex,
+                            setIndex,
+                            "time",
+                            e.target.value
+                          ),
+                        className:
+                          "flex-1 p-2 border rounded-lg text-base text-center",
+                        placeholder: "0:00",
+                        pattern: "\\d+:\\d{2}",
+                      }),
+                      React.createElement(
+                        "span",
+                        { className: "text-sm text-green-700" },
+                        "分:秒"
+                      )
+                    ),
+                    // 削除ボタン
+                    exerciseData.sets.length > 1 &&
+                      React.createElement(
+                        "div",
+                        { className: "flex justify-end" },
+                        React.createElement(
+                          "button",
+                          {
+                            onClick: () =>
+                              onRemoveSet(exerciseIndex, setIndex),
+                            className: "p-1 text-red-500 hover:text-red-700",
+                          },
+                          React.createElement(MinusCircle, {
+                            className: "h-5 w-5",
+                          })
+                        )
+                      )
+                  )
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    onClick: () => onAddSet(exerciseIndex),
+                    className:
+                      "mt-2 w-full flex items-center justify-center space-x-1 text-green-600 text-sm py-2 border border-green-300 rounded-lg hover:bg-green-50",
+                  },
+                  React.createElement(PlusCircle, {
+                    className: "h-4 w-4",
+                  }),
+                  React.createElement("span", {}, "記録を追加")
                 )
-              ),
-              React.createElement(
-                "button",
-                {
-                  onClick: () => onAddSet(exerciseIndex),
-                  className:
-                    "mt-2 flex items-center space-x-1 text-blue-600 text-sm",
-                },
-                React.createElement(PlusCircle, {
-                  className: "h-4 w-4",
-                }),
-                React.createElement("span", {}, "セットを追加")
               )
-            )
+            :
+              // ウェイトトレーニング用の入力フィールド（従来通り）
+              React.createElement(
+                "div",
+                { className: "space-y-2" },
+                exerciseData.sets.map((set, setIndex) =>
+                  React.createElement(
+                    "div",
+                    {
+                      key: setIndex,
+                      className: "flex items-center space-x-2",
+                    },
+                    React.createElement(
+                      "span",
+                      { className: "text-sm w-12" },
+                      `${setIndex + 1}セット`
+                    ),
+                    React.createElement("input", {
+                      type: "number",
+                      inputMode: "decimal",
+                      step: "0.1",
+                      value: set.weight,
+                      onChange: (e) =>
+                        onUpdateSet(
+                          exerciseIndex,
+                          setIndex,
+                          "weight",
+                          e.target.value
+                        ),
+                      onFocus: () =>
+                        setIndex > 0 &&
+                        !set.weight &&
+                        onCopyPreviousWeight(exerciseIndex, setIndex),
+                      className:
+                        "w-20 p-2 border rounded-lg text-base text-center",
+                      placeholder: "重量",
+                    }),
+                    React.createElement(
+                      "span",
+                      { className: "text-sm" },
+                      "kg ×"
+                    ),
+                    React.createElement("input", {
+                      type: "number",
+                      inputMode: "numeric",
+                      value: set.reps,
+                      onChange: (e) =>
+                        onUpdateSet(
+                          exerciseIndex,
+                          setIndex,
+                          "reps",
+                          e.target.value
+                        ),
+                      className:
+                        "w-20 p-2 border rounded-lg text-base text-center",
+                      placeholder: "回数",
+                    }),
+                    React.createElement(
+                      "span",
+                      { className: "text-sm" },
+                      "回"
+                    ),
+                    exerciseData.sets.length > 1 &&
+                      React.createElement(
+                        "button",
+                        {
+                          onClick: () =>
+                            onRemoveSet(exerciseIndex, setIndex),
+                          className: "p-1 text-red-500",
+                        },
+                        React.createElement(MinusCircle, {
+                          className: "h-5 w-5",
+                        })
+                      )
+                  )
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    onClick: () => onAddSet(exerciseIndex),
+                    className:
+                      "mt-2 flex items-center space-x-1 text-blue-600 text-sm",
+                  },
+                  React.createElement(PlusCircle, {
+                    className: "h-4 w-4",
+                  }),
+                  React.createElement("span", {}, "セットを追加")
+                )
+              )
           )
         ),
 

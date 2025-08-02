@@ -80,27 +80,17 @@ const exercisesByBodyPart = {
   "胸": [
     "ベンチプレス",
     "チェストプレス", 
-    "ダンベルプレス",
-    "インクラインベンチプレス",
     "インクラインダンベルプレス",
     "チェストフライ",
-    "ダンベルフライ",
     "ペックフライ",
-    "ディップス",
-    "プッシュアップ",
     "スミスインクラインプレス"
   ],
   "背中": [
+    "デッドリフト",
     "ラットプルダウン",
     "デッドリフト",
-    "プルアップ",
-    "マシンローイング",
     "シーテッドロー",
-    "ベントオーバーロー",
-    "ワンハンドロー",
-    "チンアップ",
-    "ケーブルロー",
-    "T-バーロー"
+    "チンニング",
   ],
   "肩": [
     "サイドレイズ",
@@ -109,76 +99,76 @@ const exercisesByBodyPart = {
     "リアレイズ",
     "フロントレイズ",
     "アップライトロー",
-    "シュラッグ",
-    "アーノルドプレス"
+    "スミスマシンショルダープレス"
   ],
   "腕（上腕二頭筋）": [
     "バーベルカール",
     "ダンベルカール",
     "ハンマーカール",
-    "プリーチャーカール",
-    "インクラインDBカール",
-    "コンセントレーションカール",
-    "バイセップカール",
-    "アームカール"
+    "インクラインダンベルカール",
   ],
   "腕（上腕三頭筋）": [
     "トライセプスエクステンション",
     "ダンベルトライセプスエクステンション",
-    "オーバーヘッドエクステンション",
     "キックバック",
     "ナローグリップベンチプレス",
-    "ディップス"
   ],
-  "脚（大腿四頭筋）": [
+  "脚": [
     "スクワット",
     "レッグプレス",
     "レッグエクステンション",
-    "ハックスクワット",
-    "ブルガリアンスクワット",
-    "スミススクワット",
-    "フロントスクワット"
-  ],
-  "脚（ハムストリング・臀部）": [
-    "デッドリフト",
-    "ルーマニアンデッドリフト",
     "レッグカール",
-    "スティッフレッグデッドリフト",
-    "ヒップスラスト",
-    "グッドモーニング"
-  ],
-  "脚（ふくらはぎ）": [
-    "カーフレイズ",
-    "シーテッドカーフレイズ",
-    "ドンキーカーフレイズ",
-    "スタンディングカーフレイズ"
+    "カーフレイズ"
   ],
   "腹筋・体幹": [
-    "クランチ",
-    "シットアップ",
-    "プランク",
-    "サイドプランク",
     "レッグレイズ",
-    "バイシクルクランチ",
-    "ロシアンツイスト",
     "アブドミナルクランチ",
-    "マウンテンクライマー"
   ],
   "有酸素運動": [
     "ランニング",
     "ウォーキング",
-    "サイクリング",
     "エアロバイク",
-    "トレッドミル",
-    "エリプティカル",
-    "ステップマシン",
-    "ローイングマシン"
   ]
 };
 
 // 旧形式との互換性を保つため、フラットなリストも作成
 const defaultExercises = Object.values(exercisesByBodyPart).flat();
 
+// 有酸素運動かどうかを判定する関数
+const isCardioExercise = (exerciseName) => {
+  return exercisesByBodyPart["有酸素運動"].includes(exerciseName);
+};
+
+// ペース（分/km）を計算する関数
+const calculatePace = (distanceKm, timeMinutes) => {
+  if (!distanceKm || !timeMinutes || distanceKm <= 0 || timeMinutes <= 0) {
+    return null;
+  }
+  return timeMinutes / distanceKm;
+};
+
+// 時間を「分:秒」形式から分数に変換する関数
+const timeStringToMinutes = (timeString) => {
+  if (!timeString) return 0;
+  const parts = timeString.split(':');
+  if (parts.length !== 2) return 0;
+  const minutes = parseInt(parts[0], 10) || 0;
+  const seconds = parseInt(parts[1], 10) || 0;
+  return minutes + (seconds / 60);
+};
+
+// 分数を「分:秒」形式に変換する関数
+const minutesToTimeString = (totalMinutes) => {
+  if (!totalMinutes || totalMinutes <= 0) return "0:00";
+  const minutes = Math.floor(totalMinutes);
+  const seconds = Math.round((totalMinutes - minutes) * 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 // グローバルにアクセス可能にする
 window.defaultExercises = defaultExercises;
 window.exercisesByBodyPart = exercisesByBodyPart;
+window.isCardioExercise = isCardioExercise;
+window.calculatePace = calculatePace;
+window.timeStringToMinutes = timeStringToMinutes;
+window.minutesToTimeString = minutesToTimeString;

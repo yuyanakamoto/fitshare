@@ -263,13 +263,44 @@ const FitShareApp = () => {
     }
 
     const validExercises = formData.exercises
-      .filter(e => e.exercise.trim() !== '' && e.sets.some(s => s.weight && s.reps))
-      .map(e => ({
-        exercise: e.exercise.trim(),
-        sets: e.sets
-          .filter(s => s.weight && s.reps)
-          .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }))
-      }));
+      .filter(e => {
+        const exerciseName = e.exercise.trim();
+        if (!exerciseName) return false;
+        
+        // 有酸素運動の場合は距離と時間をチェック
+        if (window.isCardioExercise && window.isCardioExercise(exerciseName)) {
+          return e.sets.some(s => s.distance && s.time);
+        }
+        // ウェイトトレーニングの場合は重量と回数をチェック
+        return e.sets.some(s => s.weight && s.reps);
+      })
+      .map(e => {
+        const exerciseName = e.exercise.trim();
+        const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+        
+        return {
+          exercise: exerciseName,
+          sets: e.sets
+            .filter(s => {
+              if (isCardio) {
+                return s.distance && s.time;
+              }
+              return s.weight && s.reps;
+            })
+            .map(s => {
+              if (isCardio) {
+                return { 
+                  distance: Number(s.distance), 
+                  time: s.time 
+                };
+              }
+              return { 
+                weight: Number(s.weight), 
+                reps: Number(s.reps) 
+              };
+            })
+        };
+      });
 
     if (validExercises.length === 0) {
       alert('少なくとも 1 種目 1 セットを入力してください');
@@ -356,13 +387,44 @@ const FitShareApp = () => {
     }
 
     const validExercises = formData.exercises
-      .filter(e => e.exercise.trim() !== '' && e.sets.some(s => s.weight && s.reps))
-      .map(e => ({
-        exercise: e.exercise.trim(),
-        sets: e.sets
-          .filter(s => s.weight && s.reps)
-          .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }))
-      }));
+      .filter(e => {
+        const exerciseName = e.exercise.trim();
+        if (!exerciseName) return false;
+        
+        // 有酸素運動の場合は距離と時間をチェック
+        if (window.isCardioExercise && window.isCardioExercise(exerciseName)) {
+          return e.sets.some(s => s.distance && s.time);
+        }
+        // ウェイトトレーニングの場合は重量と回数をチェック
+        return e.sets.some(s => s.weight && s.reps);
+      })
+      .map(e => {
+        const exerciseName = e.exercise.trim();
+        const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+        
+        return {
+          exercise: exerciseName,
+          sets: e.sets
+            .filter(s => {
+              if (isCardio) {
+                return s.distance && s.time;
+              }
+              return s.weight && s.reps;
+            })
+            .map(s => {
+              if (isCardio) {
+                return { 
+                  distance: Number(s.distance), 
+                  time: s.time 
+                };
+              }
+              return { 
+                weight: Number(s.weight), 
+                reps: Number(s.reps) 
+              };
+            })
+        };
+      });
 
     if (validExercises.length === 0) {
       alert('少なくとも 1 種目 1 セットを入力してください');
@@ -569,7 +631,15 @@ const FitShareApp = () => {
 
   const addSet = (exerciseIndex) => {
     const newExercises = [...formData.exercises];
-    newExercises[exerciseIndex].sets.push({ weight: "", reps: "" });
+    const exerciseName = newExercises[exerciseIndex].exercise;
+    const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+    
+    // 有酸素運動とウェイトトレーニングで異なるデフォルト値を設定
+    const newSet = isCardio 
+      ? { distance: "", time: "" }
+      : { weight: "", reps: "" };
+    
+    newExercises[exerciseIndex].sets.push(newSet);
     setFormData({ ...formData, exercises: newExercises });
   };
 

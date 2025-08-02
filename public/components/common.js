@@ -48,18 +48,24 @@ const ImageModal = ({ imageUrl, onClose }) => {
 };
 
 // 複数種目表示用コンポーネント
-const ExerciseBlock = ({ ex }) =>
-  React.createElement(
+const ExerciseBlock = ({ ex }) => {
+  const isCardio = window.isCardioExercise && window.isCardioExercise(ex.exercise);
+  
+  return React.createElement(
     "div",
     {
-      className:
-        "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-2",
+      className: isCardio 
+        ? "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-2 border border-green-200"
+        : "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 mb-2",
     },
     React.createElement(
       "div",
-      { className: "flex items-center space-x-2 mb-2" },
-      React.createElement(Dumbbell, { className: "h-4 w-4 text-blue-600" }),
-      React.createElement("span", { className: "font-semibold" }, ex.exercise)
+      { className: "mb-2" },
+      React.createElement(
+        "span", 
+        { className: isCardio ? "font-semibold text-green-700" : "font-semibold" }, 
+        ex.exercise
+      )
     ),
     ex.sets && Array.isArray(ex.sets)
       ? React.createElement(
@@ -71,19 +77,45 @@ const ExerciseBlock = ({ ex }) =>
               { key: index, className: "flex items-center space-x-2 text-sm" },
               React.createElement(
                 "span",
-                { className: "font-medium text-gray-600 w-16" },
-                `${index + 1}セット:`
+                { className: isCardio ? "font-medium text-green-600 w-16" : "font-medium text-gray-600 w-16" },
+                `${index + 1}${isCardio ? '回目:' : 'セット:'}`
               ),
-              React.createElement(
-                "span",
-                { className: "font-bold text-blue-600" },
-                `${set.weight}kg × ${set.reps}回`
-              )
+              isCardio ? 
+                // 有酸素運動の表示（距離・時間・ペース）
+                (() => {
+                  const distance = parseFloat(set.distance || 0);
+                  const timeString = set.time || "";
+                  const totalMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(timeString) : 0;
+                  
+                  let paceDisplay = "";
+                  if (distance > 0 && totalMinutes > 0) {
+                    const pace = window.calculatePace ? window.calculatePace(distance, totalMinutes) : null;
+                    if (pace) {
+                      const paceMin = Math.floor(pace);
+                      const paceSec = Math.round((pace - paceMin) * 60);
+                      paceDisplay = ` (${paceMin}:${paceSec.toString().padStart(2, '0')}/km)`;
+                    }
+                  }
+                  
+                  return React.createElement(
+                    "span",
+                    { className: "font-bold text-green-600" },
+                    `${distance}km ${timeString}${paceDisplay}`
+                  );
+                })()
+              :
+                // ウェイトトレーニングの表示（重量・回数）
+                React.createElement(
+                  "span",
+                  { className: "font-bold text-blue-600" },
+                  `${set.weight}kg × ${set.reps}回`
+                )
             )
           )
         )
       : null
   );
+};
 
 // コメントを改行対応で表示するコンポーネント
 const CommentWithLineBreaks = ({ comment }) => {
