@@ -550,7 +550,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 // 全投稿を取得（改善版）
 app.get('/api/posts', async (req, res) => {
   try {
-    const { page = 1, limit = 20, userId } = req.query;
+    const { page = 1, limit = 1000, userId } = req.query;
     const skip = (page - 1) * limit;
     
     const query = userId ? { userId } : {};
@@ -1173,11 +1173,10 @@ io.on('connection', async (socket) => {
   }
   
   try {
-    // 初期データ送信（ページネーション対応）
+    // 初期データ送信（全投稿を送信）
     const posts = await Post.find()
       .populate('userId', 'username avatar')
       .sort({ workoutDate: -1, timestamp: -1 })
-      .limit(20)
       .lean();
     
     // 画像URLの相対パス変換と日本時間タイムスタンプの追加
