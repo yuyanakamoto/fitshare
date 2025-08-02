@@ -434,7 +434,19 @@ const ProfilePage = ({
                     src: post.image,
                     alt: "トレーニング写真",
                     className: "rounded-lg max-h-48 w-full object-cover cursor-pointer mt-2",
-                    onClick: () => onImageClick(post.image)
+                    onClick: () => onImageClick(post.image),
+                    onLoad: (e) => {
+                      console.log("プロフィール画像読み込み成功:", {
+                        url: post.image,
+                        isCloudinary: post.image?.startsWith('https://res.cloudinary.com')
+                      });
+                    },
+                    onError: (e) => {
+                      console.error("プロフィール画像の読み込みに失敗しました:", {
+                        url: post.image,
+                        isCloudinary: post.image?.startsWith('https://res.cloudinary.com')
+                      });
+                    }
                   }),
                 
                 // コメント

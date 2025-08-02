@@ -189,8 +189,20 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
                     e.stopPropagation();
                     onImageClick(post.image);
                   },
+                  onLoad: (e) => {
+                    console.log("画像読み込み成功:", {
+                      url: post.image,
+                      isCloudinary: post.image?.startsWith('https://res.cloudinary.com'),
+                      dimensions: `${e.target.naturalWidth}x${e.target.naturalHeight}`
+                    });
+                  },
                   onError: (e) => {
-                    console.error("画像の読み込みに失敗しました:", post.image);
+                    console.error("画像の読み込みに失敗しました:", {
+                      url: post.image,
+                      error: e,
+                      userAgent: navigator.userAgent,
+                      isCloudinary: post.image?.startsWith('https://res.cloudinary.com')
+                    });
                     if (!e.target.dataset.errorHandled) {
                       e.target.dataset.errorHandled = "true";
                       e.target.src =
