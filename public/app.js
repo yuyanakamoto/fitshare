@@ -850,6 +850,8 @@ const FitShareApp = () => {
           setShowCustomInput,
           editingPost,
           selectedImage,
+          posts,
+          currentUser,
           onImageSelect: handleImageSelect,
           onSubmit: handleSubmit,
           onUpdate: handleUpdate,

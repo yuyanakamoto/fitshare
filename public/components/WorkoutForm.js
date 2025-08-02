@@ -7,6 +7,8 @@ const WorkoutForm = ({
   setShowCustomInput,
   editingPost,
   selectedImage,
+  posts,
+  currentUser,
   onImageSelect,
   onSubmit,
   onUpdate,
@@ -20,6 +22,51 @@ const WorkoutForm = ({
   onCopyPreviousWeight,
   onDeleteCustomExercise
 }) => {
+  
+  // 指定した種目の最大総負荷を計算する関数
+  const getMaxLoadForExercise = (exerciseName) => {
+    if (!exerciseName || !posts || !currentUser || editingPost) {
+      return null;
+    }
+
+    let maxLoad = 0;
+    let maxSet = null;
+
+    // 現在のユーザーの投稿のみをフィルタ
+    const userPosts = posts.filter(post => {
+      const postUserId = typeof post.userId === 'object' ? post.userId._id : post.userId;
+      return postUserId === currentUser.id || post.user === currentUser.username;
+    });
+
+    userPosts.forEach(post => {
+      // 新しい形式（複数種目対応）
+      if (post.exercises && Array.isArray(post.exercises)) {
+        post.exercises.forEach(exercise => {
+          if (exercise.exercise === exerciseName && exercise.sets) {
+            exercise.sets.forEach(set => {
+              const load = set.weight * set.reps;
+              if (load > maxLoad) {
+                maxLoad = load;
+                maxSet = set;
+              }
+            });
+          }
+        });
+      }
+      // 旧形式（単一種目）
+      else if (post.exercise === exerciseName && post.sets) {
+        post.sets.forEach(set => {
+          const load = set.weight * set.reps;
+          if (load > maxLoad) {
+            maxLoad = load;
+            maxSet = set;
+          }
+        });
+      }
+    });
+
+    return maxSet ? { weight: maxSet.weight, reps: maxSet.reps } : null;
+  };
   return React.createElement(
     "div",
     { className: "bg-white rounded-xl shadow-lg p-4 mb-4" },
@@ -171,6 +218,23 @@ const WorkoutForm = ({
                 )
               )
             ),
+
+            // 最大記録表示（種目選択時のみ、編集時は非表示）
+            !showCustomInput[exerciseIndex] && exerciseData.exercise && exerciseData.exercise !== "" && !editingPost &&
+              (() => {
+                const maxRecord = getMaxLoadForExercise(exerciseData.exercise);
+                if (maxRecord) {
+                  return React.createElement(
+                    "div",
+                    { 
+                      className: "text-xs text-gray-500 mb-2 px-1",
+                      style: { fontSize: "12px" }
+                    },
+                    `MAX: ${maxRecord.weight}kg×${maxRecord.reps}回`
+                  );
+                }
+                return null;
+              })(),
 
             // カスタム種目管理（選択された種目がカスタムの場合）
             exerciseData.exercise && 
