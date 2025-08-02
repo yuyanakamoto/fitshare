@@ -80,6 +80,12 @@ const FitShareApp = () => {
     });
 
     newSocket.on("newPost", (newPost) => {
+      console.log('🔄 Socket.io: 新しい投稿を受信:', {
+        id: newPost._id,
+        user: newPost.user,
+        exercise: newPost.exercises?.[0]?.exercise || newPost.exercise,
+        timestamp: new Date().toISOString()
+      });
       setPosts((prev) => [newPost, ...prev]);
     });
 
@@ -387,9 +393,20 @@ const FitShareApp = () => {
       let createdPost;
       try {
         createdPost = await res.json();
-        console.log('投稿が正常に作成されました:', createdPost._id);
-      } catch {
-        console.log('投稿レスポンスの解析に失敗しましたが、投稿は成功しました');
+        console.log('✅ 投稿が正常に作成されました:', {
+          id: createdPost._id,
+          user: createdPost.user,
+          exercise: createdPost.exercises?.[0]?.exercise || createdPost.exercise,
+          timestamp: new Date().toISOString()
+        });
+        
+        // 投稿成功を明示的にユーザーに通知
+        setTimeout(() => {
+          console.log('🔄 投稿一覧を確認してください。表示されない場合は画面を更新してください。');
+        }, 1000);
+      } catch (parseError) {
+        console.error('⚠️ 投稿レスポンスの解析に失敗:', parseError);
+        console.log('投稿は送信されましたが、レスポンスの確認ができませんでした');
       }
 
       setFormData({
