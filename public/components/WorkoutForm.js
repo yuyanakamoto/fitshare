@@ -94,7 +94,7 @@ const WorkoutForm = ({
               )
             ),
 
-            // 種目選択
+            // 種目選択（部位別）
             React.createElement(
               "select",
               {
@@ -112,17 +112,63 @@ const WorkoutForm = ({
                 { value: "" },
                 "種目を選択"
               ),
-              exercises.map((ex) =>
+              
+              // 部位別にグループ化された種目
+              window.exercisesByBodyPart && Object.entries(window.exercisesByBodyPart).map(([bodyPart, exerciseList]) => {
+                const bodyPartEmojis = {
+                  "胸": "🫁",
+                  "背中": "🔙", 
+                  "肩": "🤷",
+                  "腕（上腕二頭筋）": "💪",
+                  "腕（上腕三頭筋）": "🔱",
+                  "脚（大腿四頭筋）": "🦵",
+                  "脚（ハムストリング・臀部）": "🍑",
+                  "脚（ふくらはぎ）": "🦶",
+                  "腹筋・体幹": "🔥",
+                  "有酸素運動": "🏃"
+                };
+                return React.createElement(
+                  "optgroup",
+                  { key: bodyPart, label: `${bodyPartEmojis[bodyPart] || "💪"} ${bodyPart}` },
+                  exerciseList.map((ex) =>
+                    React.createElement(
+                      "option",
+                      { key: ex, value: ex },
+                      ex
+                    )
+                  )
+                );
+              }),
+              
+              // カスタム種目（デフォルト種目以外）
+              (() => {
+                const customExercises = exercises.filter(ex => 
+                  !window.defaultExercises?.includes(ex)
+                );
+                if (customExercises.length > 0) {
+                  return React.createElement(
+                    "optgroup",
+                    { key: "custom", label: "🏷️ カスタム種目" },
+                    customExercises.map((ex) =>
+                      React.createElement(
+                        "option",
+                        { key: ex, value: ex },
+                        ex
+                      )
+                    )
+                  );
+                }
+                return null;
+              })(),
+              
+              React.createElement(
+                "optgroup",
+                { key: "other", label: "➕ その他" },
                 React.createElement(
                   "option",
-                  { key: ex, value: ex },
-                  ex
+                  { value: "その他（自由入力）" },
+                  "新しい種目を追加"
                 )
-              ),
-              React.createElement(
-                "option",
-                { value: "その他（自由入力）" },
-                "その他（自由入力）"
               )
             ),
 
