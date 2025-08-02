@@ -7,10 +7,25 @@ const ProfilePage = ({
   onEdit, 
   onDelete, 
   onLike, 
-  connected 
+  connected,
+  // 編集機能用の追加props
+  exercises,
+  onUpdate,
+  onDeleteCustomExercise
 }) => {
   // カレンダーの年月状態管理
   const [calendarDate, setCalendarDate] = React.useState(() => new Date());
+  
+  // プロフィール画面での編集状態管理
+  const [editingPost, setEditingPost] = React.useState(null);
+  const [showForm, setShowForm] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState(null);
+  const [formData, setFormData] = React.useState({
+    exercises: [{ exercise: '', sets: [{ weight: '', reps: '' }] }],
+    comment: '',
+    workoutDate: new Date().toISOString().split('T')[0],
+  });
+  const [showCustomInput, setShowCustomInput] = React.useState([false]);
   
   // 時刻表示関数（コンポーネント内で直接定義）
   const formatTimestamp = (timestamp) => {
@@ -62,6 +77,53 @@ const ProfilePage = ({
       return '時刻エラー';
     }
   };
+
+  // プロフィール画面内での編集処理
+  const handleEditInProfile = (post) => {
+    setEditingPost(post);
+    setFormData({
+      exercises: post.exercises ?? [
+        {
+          exercise: post.exercise,
+          sets: post.sets || [
+            { weight: post.weight || "", reps: post.reps || "" },
+          ],
+        },
+      ],
+      comment: post.comment || "",
+      workoutDate: (post.workoutDate
+        ? new Date(post.workoutDate)
+        : new Date(post.timestamp)
+      )
+        .toISOString()
+        .split("T")[0],
+    });
+    setShowCustomInput((post.exercises ?? [post]).map(() => false));
+    setSelectedImage(null);
+    setShowForm(true);
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file && file.size <= 15 * 1024 * 1024) {
+      setSelectedImage(file);
+    } else {
+      alert("画像は15MB以下にしてください");
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingPost(null);
+    setFormData({
+      exercises: [{ exercise: '', sets: [{ weight: '', reps: '' }] }],
+      comment: '',
+      workoutDate: new Date().toISOString().split('T')[0],
+    });
+    setSelectedImage(null);
+    setShowCustomInput([false]);
+  };
+
   // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
   const targetUser = viewingUser || currentUser;
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
@@ -366,7 +428,7 @@ const ProfilePage = ({
             { className: "text-gray-500 text-center py-8" },
             "まだ投稿がありません。最初のトレーニングを記録してみましょう！"
           )
-        : React.createElement(
+        : !showForm && React.createElement(
             "div",
             { className: "space-y-4" },
             userPosts.slice(0, 10).map(post =>
@@ -391,7 +453,7 @@ const ProfilePage = ({
                       React.createElement(
                         "button",
                         {
-                          onClick: () => onEdit(post),
+                          onClick: () => handleEditInProfile(post),
                           className: "p-1 text-gray-500 hover:text-blue-500"
                         },
                         React.createElement(Edit, { className: "h-4 w-4" })
@@ -473,7 +535,93 @@ const ProfilePage = ({
                 "p",
                 { className: "text-center text-gray-500 text-sm" },
                 `${userPosts.length - 10}件の投稿がさらにあります`
-              )
+              ),
+
+            // プロフィール画面での編集フォーム
+            showForm && editingPost &&
+              React.createElement(WorkoutForm, {
+                formData,
+                setFormData,
+                exercises,
+                showCustomInput,
+                setShowCustomInput,
+                editingPost,
+                selectedImage,
+                posts,
+                currentUser,
+                onImageSelect: handleImageSelect,
+                onSubmit: () => {}, // プロフィール画面では新規投稿はしない
+                onUpdate,
+                onCancel: handleFormCancel,
+                onAddExercise: () => {
+                  setFormData({
+                    ...formData,
+                    exercises: [
+                      ...formData.exercises,
+                      { exercise: "", sets: [{ weight: "", reps: "" }] },
+                    ],
+                  });
+                  setShowCustomInput([...showCustomInput, false]);
+                },
+                onRemoveExercise: (index) => {
+                  if (formData.exercises.length > 1) {
+                    setFormData({
+                      ...formData,
+                      exercises: formData.exercises.filter((_, i) => i !== index),
+                    });
+                    setShowCustomInput(showCustomInput.filter((_, i) => i !== index));
+                  }
+                },
+                onUpdateExercise: (index, value) => {
+                  const newExercises = [...formData.exercises];
+                  if (value === "その他（自由入力）") {
+                    const newShowCustom = [...showCustomInput];
+                    newShowCustom[index] = true;
+                    setShowCustomInput(newShowCustom);
+                    newExercises[index].exercise = "";
+                  } else {
+                    const newShowCustom = [...showCustomInput];
+                    newShowCustom[index] = false;
+                    setShowCustomInput(newShowCustom);
+                    newExercises[index].exercise = value;
+                  }
+                  setFormData({ ...formData, exercises: newExercises });
+                },
+                onAddSet: (exerciseIndex) => {
+                  const newExercises = [...formData.exercises];
+                  const exerciseName = newExercises[exerciseIndex].exercise;
+                  const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+                  
+                  const newSet = isCardio 
+                    ? { distance: "", time: "" }
+                    : { weight: "", reps: "" };
+                  
+                  newExercises[exerciseIndex].sets.push(newSet);
+                  setFormData({ ...formData, exercises: newExercises });
+                },
+                onRemoveSet: (exerciseIndex, setIndex) => {
+                  const newExercises = [...formData.exercises];
+                  if (newExercises[exerciseIndex].sets.length > 1) {
+                    newExercises[exerciseIndex].sets.splice(setIndex, 1);
+                    setFormData({ ...formData, exercises: newExercises });
+                  }
+                },
+                onUpdateSet: (exerciseIndex, setIndex, field, value) => {
+                  const newExercises = [...formData.exercises];
+                  newExercises[exerciseIndex].sets[setIndex][field] = value;
+                  setFormData({ ...formData, exercises: newExercises });
+                },
+                onCopyPreviousWeight: (exerciseIndex, setIndex) => {
+                  if (setIndex > 0) {
+                    const previousWeight =
+                      formData.exercises[exerciseIndex].sets[setIndex - 1].weight;
+                    const newExercises = [...formData.exercises];
+                    newExercises[exerciseIndex].sets[setIndex].weight = previousWeight;
+                    setFormData({ ...formData, exercises: newExercises });
+                  }
+                },
+                onDeleteCustomExercise
+              })
           )
     )
   );

@@ -888,7 +888,11 @@ const FitShareApp = () => {
             onEdit: handleEdit,
             onDelete: handleDelete,
             onLike: handleLike,
-            connected
+            connected,
+            // 編集機能用の追加props
+            exercises,
+            onUpdate: handleUpdate,
+            onDeleteCustomExercise: deleteCustomExercise
           })
         : React.createElement(
             React.Fragment,
