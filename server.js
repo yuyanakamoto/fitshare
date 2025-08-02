@@ -624,14 +624,42 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
             throw new Error('セットデータが不正です');
           }
           
-          const validatedSets = exercise.sets.map(set => ({
-            weight: parseFloat(set.weight),
-            reps: parseInt(set.reps)
-          }));
-          
-          if (validatedSets.some(set => isNaN(set.weight) || isNaN(set.reps) || set.weight < 0 || set.reps < 0)) {
-            throw new Error('重量と回数は0以上の数値で入力してください');
-          }
+          const validatedSets = exercise.sets.map(set => {
+            // 有酸素運動の場合（distance と time フィールドがある場合）
+            if (set.distance !== undefined && set.time !== undefined) {
+              const distance = parseFloat(set.distance);
+              const time = set.time;
+              
+              if (isNaN(distance) || distance <= 0) {
+                throw new Error('距離は0より大きい数値で入力してください');
+              }
+              if (!time || typeof time !== 'string' || !time.match(/^\d+:\d{2}$/)) {
+                throw new Error('時間は「分:秒」の形式で入力してください');
+              }
+              
+              return {
+                distance: distance,
+                time: time
+              };
+            }
+            // ウェイトトレーニングの場合（weight と reps フィールドがある場合）
+            else if (set.weight !== undefined && set.reps !== undefined) {
+              const weight = parseFloat(set.weight);
+              const reps = parseInt(set.reps);
+              
+              if (isNaN(weight) || isNaN(reps) || weight < 0 || reps < 0) {
+                throw new Error('重量と回数は0以上の数値で入力してください');
+              }
+              
+              return {
+                weight: weight,
+                reps: reps
+              };
+            }
+            else {
+              throw new Error('セットデータの形式が正しくありません');
+            }
+          });
           
           return {
             exercise: exercise.exercise.trim(),
@@ -758,14 +786,42 @@ app.put('/api/posts/:id', authenticateToken, upload.single('image'), async (req,
             throw new Error('セットデータが不正です');
           }
           
-          const validatedSets = exercise.sets.map(set => ({
-            weight: parseFloat(set.weight),
-            reps: parseInt(set.reps)
-          }));
-          
-          if (validatedSets.some(set => isNaN(set.weight) || isNaN(set.reps) || set.weight < 0 || set.reps < 0)) {
-            throw new Error('重量と回数は0以上の数値で入力してください');
-          }
+          const validatedSets = exercise.sets.map(set => {
+            // 有酸素運動の場合（distance と time フィールドがある場合）
+            if (set.distance !== undefined && set.time !== undefined) {
+              const distance = parseFloat(set.distance);
+              const time = set.time;
+              
+              if (isNaN(distance) || distance <= 0) {
+                throw new Error('距離は0より大きい数値で入力してください');
+              }
+              if (!time || typeof time !== 'string' || !time.match(/^\d+:\d{2}$/)) {
+                throw new Error('時間は「分:秒」の形式で入力してください');
+              }
+              
+              return {
+                distance: distance,
+                time: time
+              };
+            }
+            // ウェイトトレーニングの場合（weight と reps フィールドがある場合）
+            else if (set.weight !== undefined && set.reps !== undefined) {
+              const weight = parseFloat(set.weight);
+              const reps = parseInt(set.reps);
+              
+              if (isNaN(weight) || isNaN(reps) || weight < 0 || reps < 0) {
+                throw new Error('重量と回数は0以上の数値で入力してください');
+              }
+              
+              return {
+                weight: weight,
+                reps: reps
+              };
+            }
+            else {
+              throw new Error('セットデータの形式が正しくありません');
+            }
+          });
           
           return {
             exercise: exercise.exercise.trim(),

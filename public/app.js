@@ -262,17 +262,31 @@ const FitShareApp = () => {
       return;
     }
 
+    console.log('🔍 投稿データ検証開始:', formData.exercises);
+    
     const validExercises = formData.exercises
       .filter(e => {
         const exerciseName = e.exercise.trim();
-        if (!exerciseName) return false;
+        if (!exerciseName) {
+          console.log('❌ 種目名が空:', e);
+          return false;
+        }
         
         // 有酸素運動の場合は距離と時間をチェック
         if (window.isCardioExercise && window.isCardioExercise(exerciseName)) {
-          return e.sets.some(s => s.distance && s.time);
+          const hasValidCardioSet = e.sets.some(s => s.distance && s.time);
+          console.log(`🏃 有酸素運動 ${exerciseName}:`, e.sets, '有効:', hasValidCardioSet);
+          return hasValidCardioSet;
         }
         // ウェイトトレーニングの場合は重量と回数をチェック
-        return e.sets.some(s => s.weight && s.reps);
+        const hasValidWeightSet = e.sets.some(s => {
+          const hasWeight = s.weight && s.weight.toString().trim() !== '';
+          const hasReps = s.reps && s.reps.toString().trim() !== '';
+          console.log(`  セット詳細: weight=${s.weight}, reps=${s.reps}, hasWeight=${hasWeight}, hasReps=${hasReps}`);
+          return hasWeight && hasReps;
+        });
+        console.log(`💪 ウェイトトレーニング ${exerciseName}:`, e.sets, '有効:', hasValidWeightSet);
+        return hasValidWeightSet;
       })
       .map(e => {
         const exerciseName = e.exercise.trim();
@@ -302,6 +316,8 @@ const FitShareApp = () => {
         };
       });
 
+    console.log('✅ 検証済み種目データ:', validExercises);
+
     if (validExercises.length === 0) {
       alert('少なくとも 1 種目 1 セットを入力してください');
       return;
@@ -314,6 +330,8 @@ const FitShareApp = () => {
       comment: formData.comment,
       workoutDate: formData.workoutDate,
     };
+    
+    console.log('📤 送信するペイロード:', payload);
 
     let res;
     try {
@@ -339,9 +357,15 @@ const FitShareApp = () => {
         });
       }
 
+      console.log('📡 API レスポンス:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: [...res.headers.entries()]
+      });
+
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('API Error:', res.status, errorText);
+        console.error('❌ API Error:', res.status, errorText);
         
         // 認証エラーの場合は再ログインを促す
         if (res.status === 401 || res.status === 403) {
@@ -355,6 +379,7 @@ const FitShareApp = () => {
           return;
         }
         
+        alert(`投稿に失敗しました: ${errorText}`);
         throw new Error(errorText);
       }
 
