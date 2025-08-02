@@ -76,6 +76,15 @@ const FitShareApp = () => {
     });
 
     newSocket.on("allPosts", (allPosts) => {
+      console.log('🔄 Socket.io: allPosts受信:', {
+        count: allPosts.length,
+        timestamp: new Date().toISOString(),
+        firstPost: allPosts[0] ? {
+          id: allPosts[0]._id,
+          user: allPosts[0].user,
+          exercise: allPosts[0].exercises?.[0]?.exercise || allPosts[0].exercise
+        } : null
+      });
       setPosts(allPosts);
     });
 

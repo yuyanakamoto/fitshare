@@ -555,12 +555,16 @@ app.get('/api/posts', async (req, res) => {
     
     const query = userId ? { userId } : {};
     
+    console.log('📖 投稿一覧を取得中:', { page, limit, userId, query });
+    
     const posts = await Post.find(query)
       .populate('userId', 'username avatar')
       .sort({ workoutDate: -1, timestamp: -1 })
       .limit(parseInt(limit))
       .skip(skip)
       .lean();
+      
+    console.log(`📊 取得した投稿数: ${posts.length}件`);
     
     // 画像URLの相対パス変換と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
@@ -733,7 +737,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
         // 当日投稿：実際の投稿時刻を使用
         postData.timestamp = new Date();
       } else {
-        // 過去日投稿：その日の12:00に設定
+        // 過去日投稿：その日の12:00に設定（日付順表示のため）
         const pastTimestamp = new Date(workoutDate);
         pastTimestamp.setHours(12, 0, 0, 0);
         postData.timestamp = pastTimestamp;
@@ -761,6 +765,16 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     
     // 新規投稿の表示時刻を計算
     responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
+    
+    // 詳細ログ
+    console.log('📝 新しい投稿を作成:', {
+      id: newPost._id,
+      user: newPost.user,
+      exercise: newPost.exercises?.[0]?.exercise || newPost.exercise,
+      workoutDate: newPost.workoutDate,
+      timestamp: newPost.timestamp,
+      socketEmit: 'newPost'
+    });
     
     io.emit('newPost', responsePost);
     res.json(responsePost);
@@ -1173,6 +1187,7 @@ io.on('connection', async (socket) => {
       displayTime: calculateDisplayTime(post.timestamp)
     }));
     
+    console.log(`🔄 Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);
     socket.emit('allPosts', normalizedPosts);
   } catch (error) {
     console.error('投稿の取得エラー:', error);
