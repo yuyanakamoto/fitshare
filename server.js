@@ -11,6 +11,8 @@ const fs = require('fs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 require('dotenv').config();
 
 const app = express();
@@ -65,21 +67,81 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// ファイルアップロード設定
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
-    cb(null, uniqueSuffix + '-' + sanitizedFilename);
-  }
+// Cloudinary設定
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// デバッグ情報
+console.log('🔧 画像ストレージ設定:');
+console.log('  - Cloudinary Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || '未設定');
+console.log('  - Cloudinary API Key:', process.env.CLOUDINARY_API_KEY ? '設定済み' : '未設定');
+console.log('  - Cloudinary API Secret:', process.env.CLOUDINARY_API_SECRET ? '設定済み' : '未設定');
+
+// ファイルアップロード設定
+// Cloudinary設定が有効な場合は常にCloudinaryを使用
+const useCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
+                     process.env.CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' &&
+                     process.env.CLOUDINARY_API_KEY && 
+                     process.env.CLOUDINARY_API_SECRET;
+
+console.log('📸 画像ストレージモード:', useCloudinary ? 'Cloudinary' : 'ローカルファイル');
+if (!useCloudinary) {
+  console.log('⚠️  Cloudinaryが無効な理由:');
+  if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your_cloud_name') {
+    console.log('   - Cloud Nameが未設定またはプレースホルダー');
+  }
+  if (!process.env.CLOUDINARY_API_KEY) {
+    console.log('   - API Keyが未設定');
+  }
+  if (!process.env.CLOUDINARY_API_SECRET) {
+    console.log('   - API Secretが未設定');
+  }
+}
+
+let storage;
+if (useCloudinary) {
+  // Cloudinaryストレージ設定
+  storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+      folder: 'fitshare', // Cloudinary内のフォルダ名
+      format: async (req, file) => {
+        // 自動で最適な形式を選択
+        const allowedFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const fileExt = path.extname(file.originalname).toLowerCase().slice(1);
+        return allowedFormats.includes(fileExt) ? fileExt : 'jpg';
+      },
+      public_id: (req, file) => {
+        // ユニークなファイル名を生成
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
+        return `${uniqueSuffix}-${sanitizedFilename}`;
+      },
+      transformation: [
+        { width: 1200, height: 1200, crop: 'limit', quality: 'auto' }, // 自動最適化
+      ],
+    },
+  });
+} else {
+  // ローカルストレージ（開発環境用）
+  storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = 'uploads';
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
+      cb(null, uniqueSuffix + '-' + sanitizedFilename);
+    }
+  });
+}
 
 const upload = multer({ 
   storage: storage,
@@ -516,9 +578,16 @@ function calculateDisplayTime(timestamp) {
 // 画像パスを相対パスに変換する関数（既存データ対応）
 function getImagePath(imagePath) {
   if (!imagePath) return null;
-  // 既に'/uploads/'で始まっている場合はそのまま
+  
+  // Cloudinary URLの場合はそのまま返す
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // 既に'/uploads/'で始まっている場合はそのまま（ローカル開発用）
   if (imagePath.startsWith('/uploads/')) return imagePath;
-  // ファイル名のみの場合は'/uploads/'を付ける
+  
+  // ファイル名のみの場合は'/uploads/'を付ける（ローカル開発用）
   return `/uploads/${imagePath}`;
 }
 
@@ -623,7 +692,8 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     
     // 画像がある場合
     if (req.file) {
-      postData.image = req.file.filename; // ファイル名のみ保存
+      // Cloudinaryの場合はフルURLを保存、ローカルの場合はファイル名のみ
+      postData.image = useCloudinary ? req.file.path : req.file.filename;
     }
     
     const newPost = new Post(postData);
@@ -644,8 +714,8 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
   } catch (error) {
     console.error('投稿エラー:', error);
     
-    // アップロードされたファイルがあれば削除
-    if (req.file) {
+    // アップロードされたファイルがあれば削除（ローカル環境のみ）
+    if (req.file && !useCloudinary) {
       try {
         fs.unlinkSync(req.file.path);
       } catch (err) {
@@ -743,8 +813,8 @@ app.put('/api/posts/:id', authenticateToken, upload.single('image'), async (req,
     
     // 画像の更新処理
     if (req.file) {
-      // 古い画像ファイルを削除
-      if (post.image) {
+      // ローカル環境の場合のみ古い画像ファイルを削除
+      if (!useCloudinary && post.image) {
         const oldImagePath = path.join(__dirname, 'uploads', path.basename(post.image));
         try {
           if (fs.existsSync(oldImagePath)) {
@@ -755,7 +825,7 @@ app.put('/api/posts/:id', authenticateToken, upload.single('image'), async (req,
         }
       }
       // 新しい画像を設定
-      post.image = req.file.filename; // ファイル名のみ保存
+      post.image = useCloudinary ? req.file.path : req.file.filename;
     }
     
     await post.save();

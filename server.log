@@ -1,4 +1,9 @@
-[dotenv@17.2.0] injecting env (5) from .env (tip: ⚙️  suppress all logs with { quiet: true })
+[dotenv@17.2.0] injecting env (8) from .env (tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit)
+🔧 画像ストレージ設定:
+  - Cloudinary Cloud Name: fitshare-yuya
+  - Cloudinary API Key: 設定済み
+  - Cloudinary API Secret: 設定済み
+📸 画像ストレージモード: Cloudinary
 
 =====================================
 FitShare バックエンドサーバー
