@@ -169,10 +169,10 @@ const ProfilePage = ({
     return big3;
   };
 
-  // ランニング最大速度を計算
-  const calculateMaxRunningSpeed = () => {
-    let maxSpeed = 0;
-    let maxRecord = null;
+  // ランニング最速ペースを計算
+  const calculateBestRunningPace = () => {
+    let bestPace = Infinity; // 最速ペース（数値が小さいほど速い）
+    let bestRecord = null;
 
     userPosts.forEach(post => {
       if (post.exercises && Array.isArray(post.exercises)) {
@@ -182,11 +182,11 @@ const ProfilePage = ({
               if (set.distance && set.time) {
                 const distance = parseFloat(set.distance);
                 const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
-                const speed = window.calculateSpeed ? window.calculateSpeed(distance, timeMinutes) : 0;
+                const pace = window.calculatePace ? window.calculatePace(distance, timeMinutes) : Infinity;
                 
-                if (speed > maxSpeed) {
-                  maxSpeed = speed;
-                  maxRecord = { distance, time: set.time, speed };
+                if (pace < bestPace && pace > 0) {
+                  bestPace = pace;
+                  bestRecord = { distance, time: set.time, pace };
                 }
               }
             });
@@ -199,18 +199,18 @@ const ProfilePage = ({
           if (set.distance && set.time) {
             const distance = parseFloat(set.distance);
             const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
-            const speed = window.calculateSpeed ? window.calculateSpeed(distance, timeMinutes) : 0;
+            const pace = window.calculatePace ? window.calculatePace(distance, timeMinutes) : Infinity;
             
-            if (speed > maxSpeed) {
-              maxSpeed = speed;
-              maxRecord = { distance, time: set.time, speed };
+            if (pace < bestPace && pace > 0) {
+              bestPace = pace;
+              bestRecord = { distance, time: set.time, pace };
             }
           }
         });
       }
     });
 
-    return maxRecord;
+    return bestRecord;
   };
 
   // トレーニング日のカレンダーデータを作成
@@ -275,7 +275,7 @@ const ProfilePage = ({
   };
 
   const maxWeights = calculateMaxWeights();
-  const maxRunningSpeed = calculateMaxRunningSpeed();
+  const bestRunningPace = calculateBestRunningPace();
   const calendarDays = generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth());
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const currentDate = new Date();
@@ -358,7 +358,7 @@ const ProfilePage = ({
       )
     ),
 
-    // ランニング最大速度セクション
+    // ランニング最速ペースセクション
     React.createElement(
       "div",
       { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
@@ -366,9 +366,9 @@ const ProfilePage = ({
         "h2",
         { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent" },
         React.createElement("span", { className: "mr-3 text-green-500" }, "🏃"),
-        "ランニング 最大速度"
+        "ランニング 最速ペース"
       ),
-      maxRunningSpeed 
+      bestRunningPace 
         ? React.createElement(
             "div",
             { className: "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300" },
@@ -378,12 +378,16 @@ const ProfilePage = ({
               React.createElement(
                 "p",
                 { className: "text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2" },
-                `${maxRunningSpeed.speed.toFixed(2)} km/h`
+                (() => {
+                  const paceMin = Math.floor(bestRunningPace.pace);
+                  const paceSec = Math.round((bestRunningPace.pace - paceMin) * 60);
+                  return `${paceMin}:${paceSec.toString().padStart(2, '0')}/km`;
+                })()
               ),
               React.createElement(
                 "p",
                 { className: "text-sm text-green-700" },
-                `${maxRunningSpeed.distance}km in ${maxRunningSpeed.time}`
+                `${bestRunningPace.distance}km in ${bestRunningPace.time}`
               )
             )
           )
