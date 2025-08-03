@@ -173,6 +173,15 @@ const minutesToTimeString = (totalMinutes) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// 時速（km/h）を計算する関数
+const calculateSpeed = (distanceKm, timeMinutes) => {
+  if (!distanceKm || !timeMinutes || distanceKm <= 0 || timeMinutes <= 0) {
+    return null;
+  }
+  const timeHours = timeMinutes / 60;
+  return distanceKm / timeHours;
+};
+
 // グローバルにアクセス可能にする
 window.defaultExercises = defaultExercises;
 window.exercisesByBodyPart = exercisesByBodyPart;
@@ -181,3 +190,4 @@ window.isBodyweightExercise = isBodyweightExercise;
 window.calculatePace = calculatePace;
 window.timeStringToMinutes = timeStringToMinutes;
 window.minutesToTimeString = minutesToTimeString;
+window.calculateSpeed = calculateSpeed;

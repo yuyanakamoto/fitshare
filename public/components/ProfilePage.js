@@ -169,6 +169,50 @@ const ProfilePage = ({
     return big3;
   };
 
+  // ランニング最大速度を計算
+  const calculateMaxRunningSpeed = () => {
+    let maxSpeed = 0;
+    let maxRecord = null;
+
+    userPosts.forEach(post => {
+      if (post.exercises && Array.isArray(post.exercises)) {
+        post.exercises.forEach(exercise => {
+          if (exercise.exercise === 'ランニング' && exercise.sets) {
+            exercise.sets.forEach(set => {
+              if (set.distance && set.time) {
+                const distance = parseFloat(set.distance);
+                const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
+                const speed = window.calculateSpeed ? window.calculateSpeed(distance, timeMinutes) : 0;
+                
+                if (speed > maxSpeed) {
+                  maxSpeed = speed;
+                  maxRecord = { distance, time: set.time, speed };
+                }
+              }
+            });
+          }
+        });
+      }
+      // 旧形式との互換性
+      else if (post.exercise === 'ランニング' && post.sets) {
+        post.sets.forEach(set => {
+          if (set.distance && set.time) {
+            const distance = parseFloat(set.distance);
+            const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
+            const speed = window.calculateSpeed ? window.calculateSpeed(distance, timeMinutes) : 0;
+            
+            if (speed > maxSpeed) {
+              maxSpeed = speed;
+              maxRecord = { distance, time: set.time, speed };
+            }
+          }
+        });
+      }
+    });
+
+    return maxRecord;
+  };
+
   // トレーニング日のカレンダーデータを作成
   const getWorkoutDates = () => {
     const workoutDates = new Set();
@@ -231,6 +275,7 @@ const ProfilePage = ({
   };
 
   const maxWeights = calculateMaxWeights();
+  const maxRunningSpeed = calculateMaxRunningSpeed();
   const calendarDays = generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth());
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const currentDate = new Date();
@@ -311,6 +356,51 @@ const ProfilePage = ({
           )
         )
       )
+    ),
+
+    // ランニング最大速度セクション
+    React.createElement(
+      "div",
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
+      React.createElement(
+        "h2",
+        { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent" },
+        React.createElement("span", { className: "mr-3 text-green-500" }, "🏃"),
+        "ランニング 最大速度"
+      ),
+      maxRunningSpeed 
+        ? React.createElement(
+            "div",
+            { className: "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300" },
+            React.createElement(
+              "div",
+              { className: "text-center" },
+              React.createElement(
+                "p",
+                { className: "text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2" },
+                `${maxRunningSpeed.speed.toFixed(2)} km/h`
+              ),
+              React.createElement(
+                "p",
+                { className: "text-sm text-green-700" },
+                `${maxRunningSpeed.distance}km in ${maxRunningSpeed.time}`
+              )
+            )
+          )
+        : React.createElement(
+            "div",
+            { className: "bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-100 shadow-lg text-center" },
+            React.createElement(
+              "p",
+              { className: "text-2xl font-bold text-gray-500" },
+              "記録なし"
+            ),
+            React.createElement(
+              "p",
+              { className: "text-sm text-gray-400 mt-1" },
+              "ランニングを記録してみましょう！"
+            )
+          )
     ),
 
     // トレーニングカレンダーセクション
