@@ -217,6 +217,10 @@ const userSchema = new mongoose.Schema({
     type: String, 
     default: '' 
   },
+  idealBodyImage: {
+    type: String,
+    default: ''
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -323,10 +327,30 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
   }],
-  comments: { 
+  commentCount: { 
     type: Number, 
     default: 0 
-  }
+  },
+  comments: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    username: {
+      type: String,
+      required: true
+    },
+    text: {
+      type: String,
+      required: true,
+      maxlength: 200
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 });
 
 // 複合インデックス
@@ -1015,6 +1039,170 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('いいねエラー:', error);
     res.status(500).json({ error: 'いいねの更新に失敗しました' });
+  }
+});
+
+// コメントを追加
+app.post('/api/posts/:id/comment', authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ error: 'コメントテキストが必要です' });
+    }
+    
+    if (text.length > 200) {
+      return res.status(400).json({ error: 'コメントは200文字以内にしてください' });
+    }
+    
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ error: '投稿が見つかりません' });
+    }
+    
+    const user = await User.findById(req.user.userId);
+    
+    const newComment = {
+      userId: req.user.userId,
+      username: user.username,
+      text: text.trim(),
+      timestamp: new Date()
+    };
+    
+    post.comments.push(newComment);
+    post.commentCount = post.comments.length;
+    
+    await post.save();
+    await post.populate('userId', 'username avatar');
+    
+    const responsePost = post.toObject();
+    responsePost.image = getImagePath(responsePost.image);
+    responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
+    
+    io.emit('updatePost', responsePost);
+    res.json(responsePost);
+  } catch (error) {
+    console.error('コメント追加エラー:', error);
+    res.status(500).json({ error: 'コメントの追加に失敗しました' });
+  }
+});
+
+// コメントを取得
+app.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id).select('comments');
+    
+    if (!post) {
+      return res.status(404).json({ error: '投稿が見つかりません' });
+    }
+    
+    res.json(post.comments);
+  } catch (error) {
+    console.error('コメント取得エラー:', error);
+    res.status(500).json({ error: 'コメントの取得に失敗しました' });
+  }
+});
+
+// アバター画像のアップロード
+app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'アバター画像が必要です' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+
+    // 既存のアバターがあれば削除
+    if (user.avatar && user.avatar.startsWith('https://res.cloudinary.com')) {
+      try {
+        const publicId = user.avatar.match(/\/v\d+\/(.+)\./)[1];
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.warn('既存アバターの削除に失敗:', deleteError);
+      }
+    }
+
+    // 新しいアバターのURLを保存
+    const avatarUrl = getImagePath(req.file.filename);
+    user.avatar = avatarUrl;
+    await user.save();
+
+    res.json({ 
+      message: 'アバターが更新されました',
+      avatar: avatarUrl 
+    });
+  } catch (error) {
+    console.error('アバターアップロードエラー:', error);
+    res.status(500).json({ error: 'アバターのアップロードに失敗しました' });
+  }
+});
+
+// 理想の体像のアップロード
+app.post('/api/users/ideal-body', authenticateToken, upload.single('idealBody'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '理想の体像画像が必要です' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+
+    // 既存の理想の体像があれば削除
+    if (user.idealBodyImage && user.idealBodyImage.startsWith('https://res.cloudinary.com')) {
+      try {
+        const publicId = user.idealBodyImage.match(/\/v\d+\/(.+)\./)[1];
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.warn('既存理想の体像の削除に失敗:', deleteError);
+      }
+    }
+
+    // 新しい理想の体像のURLを保存
+    const imageUrl = getImagePath(req.file.filename);
+    user.idealBodyImage = imageUrl;
+    await user.save();
+
+    res.json({ 
+      message: '理想の体像が更新されました',
+      idealBodyImage: imageUrl 
+    });
+  } catch (error) {
+    console.error('理想の体像アップロードエラー:', error);
+    res.status(500).json({ error: '理想の体像のアップロードに失敗しました' });
+  }
+});
+
+// 理想の体像を削除
+app.delete('/api/users/ideal-body', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+
+    // 既存の理想の体像があれば削除
+    if (user.idealBodyImage && user.idealBodyImage.startsWith('https://res.cloudinary.com')) {
+      try {
+        const publicId = user.idealBodyImage.match(/\/v\d+\/(.+)\./)[1];
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.warn('理想の体像の削除に失敗:', deleteError);
+      }
+    }
+
+    user.idealBodyImage = '';
+    await user.save();
+
+    res.json({ message: '理想の体像が削除されました' });
+  } catch (error) {
+    console.error('理想の体像削除エラー:', error);
+    res.status(500).json({ error: '理想の体像の削除に失敗しました' });
   }
 });
 

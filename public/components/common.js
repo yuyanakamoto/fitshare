@@ -158,3 +158,104 @@ const CommentWithLineBreaks = ({ comment }) => {
     )
   );
 };
+
+// コメントセクションコンポーネント
+const CommentSection = ({ post, currentUser, onAddComment }) => {
+  const [showComments, setShowComments] = React.useState(false);
+  const [commentText, setCommentText] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await onAddComment(post._id || post.id, commentText.trim());
+      setCommentText("");
+    } catch (error) {
+      console.error('コメント送信エラー:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return React.createElement(
+    "div",
+    { className: "border-t border-gray-100 pt-3 mt-3" },
+    
+    // コメント数とトグルボタン
+    React.createElement(
+      "div",
+      { className: "flex items-center justify-between mb-2" },
+      React.createElement(
+        "button",
+        {
+          onClick: () => setShowComments(!showComments),
+          className: "flex items-center space-x-1 text-gray-600 hover:text-blue-600 text-sm"
+        },
+        React.createElement(MessageCircle, { className: "h-4 w-4" }),
+        React.createElement("span", {}, `${post.commentCount || 0}件のコメント`)
+      )
+    ),
+
+    // コメント一覧（表示時のみ）
+    showComments && React.createElement(
+      "div",
+      { className: "space-y-2 mb-3" },
+      (post.comments || []).map((comment, index) =>
+        React.createElement(
+          "div",
+          { key: index, className: "bg-gray-50 rounded-lg p-2 text-sm" },
+          React.createElement(
+            "div",
+            { className: "flex items-center space-x-1 mb-1" },
+            React.createElement(
+              "span", 
+              { className: "font-semibold text-blue-600" }, 
+              comment.username
+            ),
+            React.createElement(
+              "span", 
+              { className: "text-gray-400 text-xs" }, 
+              window.formatTimestamp ? window.formatTimestamp(comment.timestamp) : "時刻不明"
+            )
+          ),
+          React.createElement(
+            "p",
+            { className: "text-gray-700" },
+            comment.text
+          )
+        )
+      )
+    ),
+
+    // コメント入力フォーム
+    showComments && currentUser && React.createElement(
+      "form",
+      { onSubmit: handleSubmitComment, className: "flex space-x-2" },
+      React.createElement("input", {
+        type: "text",
+        value: commentText,
+        onChange: (e) => setCommentText(e.target.value),
+        placeholder: "コメントを入力...",
+        className: "flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+        maxLength: 200,
+        disabled: isSubmitting
+      }),
+      React.createElement(
+        "button",
+        {
+          type: "submit",
+          disabled: !commentText.trim() || isSubmitting,
+          className: `px-4 py-2 text-sm font-medium rounded-lg ${
+            commentText.trim() && !isSubmitting
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`
+        },
+        isSubmitting ? "送信中..." : "送信"
+      )
+    )
+  );
+};

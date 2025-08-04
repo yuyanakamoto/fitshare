@@ -11,7 +11,11 @@ const ProfilePage = ({
   // 編集機能用の追加props
   exercises,
   onUpdate,
-  onDeleteCustomExercise
+  onDeleteCustomExercise,
+  onAddComment,
+  onAvatarUpload,
+  onIdealBodyUpload,
+  onIdealBodyDelete
 }) => {
   // カレンダーの年月状態管理
   const [calendarDate, setCalendarDate] = React.useState(() => new Date());
@@ -295,10 +299,56 @@ const ProfilePage = ({
         { className: "flex items-center space-x-4 mb-4" },
         React.createElement(
           "div",
-          {
-            className: "w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg"
-          },
-          targetUser.avatar || targetUser.username.charAt(0).toUpperCase()
+          { className: "relative" },
+          targetUser.avatar
+            ? React.createElement("img", {
+                src: targetUser.avatar,
+                alt: `${targetUser.username}のアバター`,
+                className: "w-20 h-20 rounded-2xl object-cover shadow-lg",
+                onError: (e) => {
+                  console.error("アバター画像の読み込みに失敗:", targetUser.avatar);
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "flex";
+                }
+              })
+            : null,
+          React.createElement(
+            "div",
+            {
+              className: `w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg ${
+                targetUser.avatar ? "hidden" : ""
+              }`,
+              style: targetUser.avatar ? { display: "none" } : {}
+            },
+            targetUser.username.charAt(0).toUpperCase()
+          ),
+          // アバター変更ボタン（自分のプロフィールの場合のみ）
+          isOwnProfile && onAvatarUpload && React.createElement(
+            "div",
+            { className: "absolute -bottom-2 -right-2" },
+            React.createElement("input", {
+              type: "file",
+              accept: "image/*",
+              onChange: (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  onAvatarUpload(file);
+                }
+                // ファイル選択をリセット
+                e.target.value = "";
+              },
+              style: { display: "none" },
+              id: "avatar-upload"
+            }),
+            React.createElement(
+              "label",
+              {
+                htmlFor: "avatar-upload",
+                className: "w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 shadow-lg transition-colors"
+              },
+              React.createElement("span", { className: "text-sm" }, "📷")
+            )
+          )
         ),
         React.createElement(
           "div",
@@ -341,16 +391,16 @@ const ProfilePage = ({
             "div",
             {
               key: exercise,
-              className: "bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300"
+              className: "bg-gradient-to-br from-indigo-50 to-purple-50 p-3 sm:p-4 rounded-2xl border border-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300"
             },
             React.createElement(
               "h3",
-              { className: "font-bold text-gray-800 mb-2 text-lg" },
+              { className: "font-bold text-gray-800 mb-1 text-sm sm:text-base" },
               exercise
             ),
             React.createElement(
               "p",
-              { className: "text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
+              { className: "text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" },
               weight > 0 ? `${weight}kg` : "記録なし"
             )
           )
@@ -371,13 +421,13 @@ const ProfilePage = ({
       bestRunningPace 
         ? React.createElement(
             "div",
-            { className: "bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300" },
+            { className: "bg-gradient-to-br from-green-50 to-emerald-50 p-3 sm:p-4 rounded-2xl border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300" },
             React.createElement(
               "div",
               { className: "text-center" },
               React.createElement(
                 "p",
-                { className: "text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2" },
+                { className: "text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1 sm:mb-2" },
                 (() => {
                   const paceMin = Math.floor(bestRunningPace.pace);
                   const paceSec = Math.round((bestRunningPace.pace - paceMin) * 60);
@@ -405,6 +455,103 @@ const ProfilePage = ({
               "ランニングを記録してみましょう！"
             )
           )
+    ),
+
+    // 理想の体像セクション
+    React.createElement(
+      "div",
+      { className: "bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-8 hover-lift border border-gray-100" },
+      React.createElement(
+        "h2",
+        { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent" },
+        React.createElement("span", { className: "mr-3 text-purple-500" }, "💪"),
+        "理想の体"
+      ),
+      React.createElement(
+        "div",
+        { className: "text-center" },
+        (targetUser.idealBodyImage && isOwnProfile) || (targetUser.idealBodyImage && !isOwnProfile)
+          ? React.createElement(
+              "div",
+              { className: "relative inline-block" },
+              React.createElement("img", {
+                src: targetUser.idealBodyImage,
+                alt: "理想の体像",
+                className: "max-w-full h-64 sm:h-80 object-cover rounded-2xl shadow-lg cursor-pointer",
+                onClick: () => onImageClick(targetUser.idealBodyImage),
+                onError: (e) => {
+                  console.error("理想の体像の読み込みに失敗:", targetUser.idealBodyImage);
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "block";
+                }
+              }),
+              React.createElement(
+                "div",
+                {
+                  className: "hidden text-center p-8 text-gray-500",
+                  style: { display: "none" }
+                },
+                "画像の読み込みに失敗しました"
+              ),
+              // 削除ボタン（自分のプロフィールの場合のみ）
+              isOwnProfile && onIdealBodyDelete && React.createElement(
+                "button",
+                {
+                  onClick: onIdealBodyDelete,
+                  className: "absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 shadow-lg transition-colors"
+                },
+                React.createElement("span", { className: "text-sm" }, "×")
+              )
+            )
+          : isOwnProfile && onIdealBodyUpload
+            ? React.createElement(
+                "div",
+                { className: "border-2 border-dashed border-purple-300 rounded-2xl p-8 hover:border-purple-400 transition-colors" },
+                React.createElement("input", {
+                  type: "file",
+                  accept: "image/*",
+                  onChange: (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      onIdealBodyUpload(file);
+                    }
+                    e.target.value = "";
+                  },
+                  style: { display: "none" },
+                  id: "ideal-body-upload"
+                }),
+                React.createElement(
+                  "label",
+                  {
+                    htmlFor: "ideal-body-upload",
+                    className: "cursor-pointer flex flex-col items-center space-y-3"
+                  },
+                  React.createElement("span", { className: "text-4xl" }, "📷"),
+                  React.createElement(
+                    "p",
+                    { className: "text-purple-600 font-medium" },
+                    "理想の体像をアップロード"
+                  ),
+                  React.createElement(
+                    "p",
+                    { className: "text-sm text-gray-500" },
+                    "目標とする体型の写真を設定できます"
+                  )
+                )
+              )
+            : React.createElement(
+                "div",
+                { className: "text-center p-8 text-gray-500" },
+                React.createElement("span", { className: "text-4xl block mb-3" }, "💪"),
+                React.createElement(
+                  "p",
+                  {},
+                  isOwnProfile 
+                    ? "理想の体像を設定してみましょう" 
+                    : `${targetUser.username}さんの理想の体像は設定されていません`
+                )
+              )
+      )
     ),
 
     // トレーニングカレンダーセクション
@@ -621,7 +768,14 @@ const ProfilePage = ({
                     React.createElement(Heart, { className: "h-4 w-4" }),
                     React.createElement("span", { className: "text-sm" }, post.likes || 0)
                   )
-                )
+                ),
+                
+                // コメントセクション
+                React.createElement(CommentSection, {
+                  post: post,
+                  currentUser: currentUser,
+                  onAddComment: onAddComment
+                })
               )
             ),
             userPosts.length > 10 &&

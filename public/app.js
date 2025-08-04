@@ -585,6 +585,189 @@ const FitShareApp = () => {
     }
   };
 
+  // コメント追加機能
+  const handleAddComment = async (postId, commentText) => {
+    if (!currentUser) {
+      setShowAuthForm(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/posts/${postId}/comment`, {
+        method: "POST",
+        headers: {
+          ...getHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: commentText }),
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (error) {
+      console.error("コメントの送信に失敗しました:", error);
+      throw error;
+    }
+  };
+
+  // アバター画像のアップロード
+  const handleAvatarUpload = async (file) => {
+    if (!currentUser) {
+      setShowAuthForm(true);
+      return;
+    }
+
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert("画像は15MB以下にしてください");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const res = await fetch(`${SERVER_URL}/api/users/avatar`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: formData,
+      });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      
+      // ユーザー情報を更新
+      const updatedUser = { ...currentUser, avatar: data.avatar };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("fitShareUser", JSON.stringify(updatedUser));
+      
+      alert("アバターが更新されました！");
+    } catch (error) {
+      console.error("アバターのアップロードに失敗しました:", error);
+      alert("アバターのアップロードに失敗しました");
+    }
+  };
+
+  // 理想の体像のアップロード
+  const handleIdealBodyUpload = async (file) => {
+    if (!currentUser) {
+      setShowAuthForm(true);
+      return;
+    }
+
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert("画像は15MB以下にしてください");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("idealBody", file);
+
+      const res = await fetch(`${SERVER_URL}/api/users/ideal-body`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: formData,
+      });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      
+      // ユーザー情報を更新
+      const updatedUser = { ...currentUser, idealBodyImage: data.idealBodyImage };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("fitShareUser", JSON.stringify(updatedUser));
+      
+      alert("理想の体像が更新されました！");
+    } catch (error) {
+      console.error("理想の体像のアップロードに失敗しました:", error);
+      alert("理想の体像のアップロードに失敗しました");
+    }
+  };
+
+  // 理想の体像の削除
+  const handleIdealBodyDelete = async () => {
+    if (!currentUser) {
+      setShowAuthForm(true);
+      return;
+    }
+
+    if (!confirm("理想の体像を削除しますか？")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/users/ideal-body`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      // ユーザー情報を更新
+      const updatedUser = { ...currentUser, idealBodyImage: '' };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("fitShareUser", JSON.stringify(updatedUser));
+      
+      alert("理想の体像が削除されました");
+    } catch (error) {
+      console.error("理想の体像の削除に失敗しました:", error);
+      alert("理想の体像の削除に失敗しました");
+    }
+  };
+
   const handleEdit = (post) => {
     setEditingPost(post);
     setFormData({
@@ -898,7 +1081,11 @@ const FitShareApp = () => {
             // 編集機能用の追加props
             exercises,
             onUpdate: handleUpdate,
-            onDeleteCustomExercise: deleteCustomExercise
+            onDeleteCustomExercise: deleteCustomExercise,
+            onAddComment: handleAddComment,
+            onAvatarUpload: handleAvatarUpload,
+            onIdealBodyUpload: handleIdealBodyUpload,
+            onIdealBodyDelete: handleIdealBodyDelete
           })
         : React.createElement(
             React.Fragment,
@@ -1006,7 +1193,8 @@ const FitShareApp = () => {
               onEdit: handleEdit,
               onDelete: handleDelete,
               onImageClick: setModalImage,
-              onUserClick: handleViewUserProfile
+              onUserClick: handleViewUserProfile,
+              onAddComment: handleAddComment
             })
           )
     )

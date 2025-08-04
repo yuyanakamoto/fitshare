@@ -1,5 +1,5 @@
 // 投稿リストコンポーネント
-const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick, onUserClick }) => {
+const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick, onUserClick, onAddComment }) => {
   
   // 時刻表示関数（コンポーネント内で直接定義）
   const formatTimestamp = (timestamp) => {
@@ -257,22 +257,14 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
                   post.likes || 0
                 )
               ),
-              React.createElement(
-                "div",
-                {
-                  className:
-                    "flex items-center space-x-1 text-gray-600",
-                },
-                React.createElement(MessageCircle, {
-                  className: "h-5 w-5",
-                }),
-                React.createElement(
-                  "span",
-                  { className: "text-sm" },
-                  post.comments || 0
-                )
-              )
-            )
+            ),
+            
+            // コメントセクション
+            React.createElement(CommentSection, {
+              post: post,
+              currentUser: currentUser,
+              onAddComment: onAddComment
+            })
           )
         )
       );
