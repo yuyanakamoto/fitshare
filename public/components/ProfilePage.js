@@ -669,7 +669,98 @@ const ProfilePage = ({
             { className: "text-gray-500 text-center py-8" },
             "まだ投稿がありません。最初のトレーニングを記録してみましょう！"
           )
-        : !showForm && React.createElement(
+        : showForm && editingPost
+          ? // プロフィール画面での編集フォーム
+            React.createElement(WorkoutForm, {
+              formData,
+              setFormData,
+              exercises,
+              showCustomInput,
+              setShowCustomInput,
+              editingPost,
+              selectedImage,
+              posts,
+              currentUser,
+              onImageSelect: handleImageSelect,
+              onSubmit: () => {}, // プロフィール画面では新規投稿はしない
+              onUpdate,
+              onCancel: handleFormCancel,
+              onAddExercise: () => {
+                setFormData({
+                  ...formData,
+                  exercises: [
+                    ...formData.exercises,
+                    { exercise: "", sets: [{ weight: "", reps: "" }] },
+                  ],
+                });
+                setShowCustomInput([...showCustomInput, false]);
+              },
+              onRemoveExercise: (index) => {
+                if (formData.exercises.length > 1) {
+                  setFormData({
+                    ...formData,
+                    exercises: formData.exercises.filter((_, i) => i !== index),
+                  });
+                  setShowCustomInput(showCustomInput.filter((_, i) => i !== index));
+                }
+              },
+              onUpdateExercise: (index, value) => {
+                const newExercises = [...formData.exercises];
+                if (value === "その他（自由入力）") {
+                  const newShowCustom = [...showCustomInput];
+                  newShowCustom[index] = true;
+                  setShowCustomInput(newShowCustom);
+                  newExercises[index].exercise = "";
+                } else {
+                  const newShowCustom = [...showCustomInput];
+                  newShowCustom[index] = false;
+                  setShowCustomInput(newShowCustom);
+                  newExercises[index].exercise = value;
+                }
+                setFormData({ ...formData, exercises: newExercises });
+              },
+              onAddSet: (exerciseIndex) => {
+                const newExercises = [...formData.exercises];
+                const exerciseName = newExercises[exerciseIndex].exercise;
+                const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
+                const isBodyweight = window.isBodyweightExercise && window.isBodyweightExercise(exerciseName);
+                
+                let newSet;
+                if (isCardio) {
+                  newSet = { distance: "", time: "" };
+                } else if (isBodyweight) {
+                  newSet = { bodyweight: "", reps: "" };
+                } else {
+                  newSet = { weight: "", reps: "" };
+                }
+                
+                newExercises[exerciseIndex].sets.push(newSet);
+                setFormData({ ...formData, exercises: newExercises });
+              },
+              onRemoveSet: (exerciseIndex, setIndex) => {
+                const newExercises = [...formData.exercises];
+                if (newExercises[exerciseIndex].sets.length > 1) {
+                  newExercises[exerciseIndex].sets.splice(setIndex, 1);
+                  setFormData({ ...formData, exercises: newExercises });
+                }
+              },
+              onUpdateSet: (exerciseIndex, setIndex, field, value) => {
+                const newExercises = [...formData.exercises];
+                newExercises[exerciseIndex].sets[setIndex][field] = value;
+                setFormData({ ...formData, exercises: newExercises });
+              },
+              onCopyPreviousWeight: (exerciseIndex, setIndex) => {
+                if (setIndex > 0) {
+                  const previousWeight =
+                    formData.exercises[exerciseIndex].sets[setIndex - 1].weight;
+                  const newExercises = [...formData.exercises];
+                  newExercises[exerciseIndex].sets[setIndex].weight = previousWeight;
+                  setFormData({ ...formData, exercises: newExercises });
+                }
+              },
+              onDeleteCustomExercise
+            })
+          : React.createElement(
             "div",
             { className: "space-y-4" },
             userPosts.slice(0, 10).map(post =>
@@ -783,99 +874,7 @@ const ProfilePage = ({
                 "p",
                 { className: "text-center text-gray-500 text-sm" },
                 `${userPosts.length - 10}件の投稿がさらにあります`
-              ),
-
-            // プロフィール画面での編集フォーム
-            showForm && editingPost &&
-              React.createElement(WorkoutForm, {
-                formData,
-                setFormData,
-                exercises,
-                showCustomInput,
-                setShowCustomInput,
-                editingPost,
-                selectedImage,
-                posts,
-                currentUser,
-                onImageSelect: handleImageSelect,
-                onSubmit: () => {}, // プロフィール画面では新規投稿はしない
-                onUpdate,
-                onCancel: handleFormCancel,
-                onAddExercise: () => {
-                  setFormData({
-                    ...formData,
-                    exercises: [
-                      ...formData.exercises,
-                      { exercise: "", sets: [{ weight: "", reps: "" }] },
-                    ],
-                  });
-                  setShowCustomInput([...showCustomInput, false]);
-                },
-                onRemoveExercise: (index) => {
-                  if (formData.exercises.length > 1) {
-                    setFormData({
-                      ...formData,
-                      exercises: formData.exercises.filter((_, i) => i !== index),
-                    });
-                    setShowCustomInput(showCustomInput.filter((_, i) => i !== index));
-                  }
-                },
-                onUpdateExercise: (index, value) => {
-                  const newExercises = [...formData.exercises];
-                  if (value === "その他（自由入力）") {
-                    const newShowCustom = [...showCustomInput];
-                    newShowCustom[index] = true;
-                    setShowCustomInput(newShowCustom);
-                    newExercises[index].exercise = "";
-                  } else {
-                    const newShowCustom = [...showCustomInput];
-                    newShowCustom[index] = false;
-                    setShowCustomInput(newShowCustom);
-                    newExercises[index].exercise = value;
-                  }
-                  setFormData({ ...formData, exercises: newExercises });
-                },
-                onAddSet: (exerciseIndex) => {
-                  const newExercises = [...formData.exercises];
-                  const exerciseName = newExercises[exerciseIndex].exercise;
-                  const isCardio = window.isCardioExercise && window.isCardioExercise(exerciseName);
-                  const isBodyweight = window.isBodyweightExercise && window.isBodyweightExercise(exerciseName);
-                  
-                  let newSet;
-                  if (isCardio) {
-                    newSet = { distance: "", time: "" };
-                  } else if (isBodyweight) {
-                    newSet = { bodyweight: "", reps: "" };
-                  } else {
-                    newSet = { weight: "", reps: "" };
-                  }
-                  
-                  newExercises[exerciseIndex].sets.push(newSet);
-                  setFormData({ ...formData, exercises: newExercises });
-                },
-                onRemoveSet: (exerciseIndex, setIndex) => {
-                  const newExercises = [...formData.exercises];
-                  if (newExercises[exerciseIndex].sets.length > 1) {
-                    newExercises[exerciseIndex].sets.splice(setIndex, 1);
-                    setFormData({ ...formData, exercises: newExercises });
-                  }
-                },
-                onUpdateSet: (exerciseIndex, setIndex, field, value) => {
-                  const newExercises = [...formData.exercises];
-                  newExercises[exerciseIndex].sets[setIndex][field] = value;
-                  setFormData({ ...formData, exercises: newExercises });
-                },
-                onCopyPreviousWeight: (exerciseIndex, setIndex) => {
-                  if (setIndex > 0) {
-                    const previousWeight =
-                      formData.exercises[exerciseIndex].sets[setIndex - 1].weight;
-                    const newExercises = [...formData.exercises];
-                    newExercises[exerciseIndex].sets[setIndex].weight = previousWeight;
-                    setFormData({ ...formData, exercises: newExercises });
-                  }
-                },
-                onDeleteCustomExercise
-              })
+              )
           )
     )
   );

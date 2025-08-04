@@ -1106,13 +1106,26 @@ app.get('/api/posts/:id/comments', async (req, res) => {
 
 // アバター画像のアップロード
 app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  console.log('アバターアップロード開始');
+  console.log('req.file:', req.file);
+  console.log('req.user:', req.user);
+  
   try {
     if (!req.file) {
+      console.log('ファイルが見つかりません');
       return res.status(400).json({ error: 'アバター画像が必要です' });
     }
 
+    console.log('ファイル情報:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      filename: req.file.filename
+    });
+
     const user = await User.findById(req.user.userId);
     if (!user) {
+      console.log('ユーザーが見つかりません:', req.user.userId);
       return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
 
@@ -1120,6 +1133,7 @@ app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async 
     if (user.avatar && user.avatar.startsWith('https://res.cloudinary.com')) {
       try {
         const publicId = user.avatar.match(/\/v\d+\/(.+)\./)[1];
+        console.log('既存アバター削除中:', publicId);
         await cloudinary.uploader.destroy(publicId);
       } catch (deleteError) {
         console.warn('既存アバターの削除に失敗:', deleteError);
@@ -1128,28 +1142,44 @@ app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async 
 
     // 新しいアバターのURLを保存
     const avatarUrl = getImagePath(req.file.filename);
+    console.log('新しいアバターURL:', avatarUrl);
+    
     user.avatar = avatarUrl;
     await user.save();
 
+    console.log('アバター更新成功');
     res.json({ 
       message: 'アバターが更新されました',
       avatar: avatarUrl 
     });
   } catch (error) {
     console.error('アバターアップロードエラー:', error);
-    res.status(500).json({ error: 'アバターのアップロードに失敗しました' });
+    res.status(500).json({ error: 'アバターのアップロードに失敗しました', details: error.message });
   }
 });
 
 // 理想の体像のアップロード
 app.post('/api/users/ideal-body', authenticateToken, upload.single('idealBody'), async (req, res) => {
+  console.log('理想の体像アップロード開始');
+  console.log('req.file:', req.file);
+  console.log('req.user:', req.user);
+  
   try {
     if (!req.file) {
+      console.log('ファイルが見つかりません');
       return res.status(400).json({ error: '理想の体像画像が必要です' });
     }
 
+    console.log('ファイル情報:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      filename: req.file.filename
+    });
+
     const user = await User.findById(req.user.userId);
     if (!user) {
+      console.log('ユーザーが見つかりません:', req.user.userId);
       return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
 
@@ -1157,6 +1187,7 @@ app.post('/api/users/ideal-body', authenticateToken, upload.single('idealBody'),
     if (user.idealBodyImage && user.idealBodyImage.startsWith('https://res.cloudinary.com')) {
       try {
         const publicId = user.idealBodyImage.match(/\/v\d+\/(.+)\./)[1];
+        console.log('既存理想の体像削除中:', publicId);
         await cloudinary.uploader.destroy(publicId);
       } catch (deleteError) {
         console.warn('既存理想の体像の削除に失敗:', deleteError);
@@ -1165,16 +1196,19 @@ app.post('/api/users/ideal-body', authenticateToken, upload.single('idealBody'),
 
     // 新しい理想の体像のURLを保存
     const imageUrl = getImagePath(req.file.filename);
+    console.log('新しい理想の体像URL:', imageUrl);
+    
     user.idealBodyImage = imageUrl;
     await user.save();
 
+    console.log('理想の体像更新成功');
     res.json({ 
       message: '理想の体像が更新されました',
       idealBodyImage: imageUrl 
     });
   } catch (error) {
     console.error('理想の体像アップロードエラー:', error);
-    res.status(500).json({ error: '理想の体像のアップロードに失敗しました' });
+    res.status(500).json({ error: '理想の体像のアップロードに失敗しました', details: error.message });
   }
 });
 

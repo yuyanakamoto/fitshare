@@ -630,6 +630,12 @@ const FitShareApp = () => {
 
     if (!file) return;
 
+    console.log('アバターアップロード開始:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
     if (file.size > 15 * 1024 * 1024) {
       alert("画像は15MB以下にしてください");
       return;
@@ -639,13 +645,20 @@ const FitShareApp = () => {
       const formData = new FormData();
       formData.append("avatar", file);
 
+      console.log('FormData作成完了、リクエスト送信開始');
+
       const res = await fetch(`${SERVER_URL}/api/users/avatar`, {
         method: "POST",
         headers: getHeaders(),
         body: formData,
       });
 
+      console.log('レスポンス受信:', res.status, res.statusText);
+
       if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'レスポンスの解析に失敗' }));
+        console.error('アップロードエラー:', errorData);
+        
         if (res.status === 401 || res.status === 403) {
           console.log('認証エラーが発生しました。再ログインが必要です。');
           localStorage.removeItem('fitShareToken');
@@ -656,10 +669,13 @@ const FitShareApp = () => {
           alert('セッションが切れました。再度ログインしてください。');
           return;
         }
-        throw new Error(`HTTP ${res.status}`);
+        
+        alert(`アバターのアップロードに失敗しました: ${errorData.error || '不明なエラー'}\n詳細: ${errorData.details || ''}`);
+        return;
       }
 
       const data = await res.json();
+      console.log('アップロード成功:', data);
       
       // ユーザー情報を更新
       const updatedUser = { ...currentUser, avatar: data.avatar };
@@ -669,7 +685,7 @@ const FitShareApp = () => {
       alert("アバターが更新されました！");
     } catch (error) {
       console.error("アバターのアップロードに失敗しました:", error);
-      alert("アバターのアップロードに失敗しました");
+      alert(`アバターのアップロードに失敗しました: ${error.message}`);
     }
   };
 
@@ -682,6 +698,12 @@ const FitShareApp = () => {
 
     if (!file) return;
 
+    console.log('理想の体像アップロード開始:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
     if (file.size > 15 * 1024 * 1024) {
       alert("画像は15MB以下にしてください");
       return;
@@ -691,13 +713,20 @@ const FitShareApp = () => {
       const formData = new FormData();
       formData.append("idealBody", file);
 
+      console.log('FormData作成完了、リクエスト送信開始');
+
       const res = await fetch(`${SERVER_URL}/api/users/ideal-body`, {
         method: "POST",
         headers: getHeaders(),
         body: formData,
       });
 
+      console.log('レスポンス受信:', res.status, res.statusText);
+
       if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'レスポンスの解析に失敗' }));
+        console.error('理想の体像アップロードエラー:', errorData);
+        
         if (res.status === 401 || res.status === 403) {
           console.log('認証エラーが発生しました。再ログインが必要です。');
           localStorage.removeItem('fitShareToken');
@@ -708,10 +737,13 @@ const FitShareApp = () => {
           alert('セッションが切れました。再度ログインしてください。');
           return;
         }
-        throw new Error(`HTTP ${res.status}`);
+        
+        alert(`理想の体像のアップロードに失敗しました: ${errorData.error || '不明なエラー'}\n詳細: ${errorData.details || ''}`);
+        return;
       }
 
       const data = await res.json();
+      console.log('理想の体像アップロード成功:', data);
       
       // ユーザー情報を更新
       const updatedUser = { ...currentUser, idealBodyImage: data.idealBodyImage };
@@ -721,7 +753,7 @@ const FitShareApp = () => {
       alert("理想の体像が更新されました！");
     } catch (error) {
       console.error("理想の体像のアップロードに失敗しました:", error);
-      alert("理想の体像のアップロードに失敗しました");
+      alert(`理想の体像のアップロードに失敗しました: ${error.message}`);
     }
   };
 
