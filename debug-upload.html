@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        button { margin: 5px; padding: 10px; }
+        #logs { white-space: pre-wrap; background: #f5f5f5; padding: 10px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Upload Debug Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Test Authentication</h3>
+        <input type="email" id="email" placeholder="メール" value="test@example.com">
+        <input type="password" id="password" placeholder="パスワード" value="testpass">
+        <button onclick="testLogin()">Login Test</button>
+        <div id="authResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Test File Upload</h3>
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="testUpload()">Test Upload</button>
+        <div id="uploadResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Logs</h3>
+        <div id="logs"></div>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <script>
+        let authToken = '';
+        
+        function log(message) {
+            const logs = document.getElementById('logs');
+            logs.textContent += new Date().toISOString() + ': ' + JSON.stringify(message, null, 2) + '\n';
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').textContent = '';
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log('Login attempt: ' + email);
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                log('Login response status: ' + response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.token;
+                    log('Login successful, token: ' + (authToken ? 'received' : 'not received'));
+                    document.getElementById('authResult').innerHTML = '<span style="color: green;">✓ Login successful</span>';
+                } else {
+                    const error = await response.text();
+                    log('Login failed: ' + error);
+                    document.getElementById('authResult').innerHTML = '<span style="color: red;">✗ Login failed: ' + error + '</span>';
+                }
+            } catch (error) {
+                log('Login error: ' + error.message);
+                document.getElementById('authResult').innerHTML = '<span style="color: red;">✗ Login error: ' + error.message + '</span>';
+            }
+        }
+        
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+            
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            log('Upload attempt: ' + file.name);
+            
+            const formData = new FormData();
+            formData.append('avatar', file);
+            
+            try {
+                const headers = {};
+                headers['Authorization'] = 'Bearer ' + authToken;
+                
+                log('Request headers: ' + JSON.stringify(headers));
+                
+                const response = await fetch('http://localhost:3001/api/users/avatar', {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+                
+                log('Upload response status: ' + response.status);
+                log('Upload response headers: ' + JSON.stringify(Object.fromEntries(response.headers.entries())));
+                
+                const responseText = await response.text();
+                log('Upload response body: ' + responseText);
+                
+                if (response.ok) {
+                    try {
+                        const data = JSON.parse(responseText);
+                        log('Upload successful: ' + JSON.stringify(data));
+                        document.getElementById('uploadResult').innerHTML = '<span style="color: green;">✓ Upload successful</span>';
+                    } catch (e) {
+                        log('Response parse error: ' + e.message);
+                    }
+                } else {
+                    document.getElementById('uploadResult').innerHTML = '<span style="color: red;">✗ Upload failed: ' + responseText + '</span>';
+                }
+                
+            } catch (error) {
+                log('Upload error: ' + error.message);
+                document.getElementById('uploadResult').innerHTML = '<span style="color: red;">✗ Upload error: ' + error.message + '</span>';
+            }
+        }
+    </script>
+</body>
+</html>

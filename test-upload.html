@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Upload Test</title>
+</head>
+<body>
+    <h1>Image Upload Test</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="testUpload()">Test Upload</button>
+    <div id="result"></div>
+
+    <script>
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+            
+            console.log('Testing upload with file:', {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+            
+            const formData = new FormData();
+            formData.append('avatar', file);
+            
+            // Test without auth first
+            try {
+                const response = await fetch('http://localhost:3001/api/users/avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                const result = await response.text();
+                console.log('Response body:', result);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Result:</h3>
+                    <p>Status: ${response.status}</p>
+                    <p>Response: ${result}</p>
+                `;
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

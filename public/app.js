@@ -53,8 +53,11 @@ const FitShareApp = () => {
   });
 
   // APIヘッダー
-  const getHeaders = () => {
-    const headers = { "Content-Type": "application/json" };
+  const getHeaders = (includeContentType = true) => {
+    const headers = {};
+    if (includeContentType) {
+      headers["Content-Type"] = "application/json";
+    }
     if (authToken) {
       headers["Authorization"] = `Bearer ${authToken}`;
     }
@@ -633,7 +636,9 @@ const FitShareApp = () => {
     console.log('アバターアップロード開始:', {
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      fileType: file.type,
+      currentUser: currentUser,
+      authToken: authToken ? '設定済み' : '未設定'
     });
 
     if (file.size > 15 * 1024 * 1024) {
@@ -645,19 +650,34 @@ const FitShareApp = () => {
       const formData = new FormData();
       formData.append("avatar", file);
 
+      const headers = getHeaders(false);
+      console.log('送信ヘッダー:', headers);
       console.log('FormData作成完了、リクエスト送信開始');
 
       const res = await fetch(`${SERVER_URL}/api/users/avatar`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: headers,
         body: formData,
       });
 
-      console.log('レスポンス受信:', res.status, res.statusText);
+      console.log('レスポンス受信:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries())
+      });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'レスポンスの解析に失敗' }));
-        console.error('アップロードエラー:', errorData);
+        const errorText = await res.text();
+        console.error('アップロードエラー（生テキスト）:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { error: errorText || res.statusText };
+        }
+        
+        console.error('パースされたエラー:', errorData);
         
         if (res.status === 401 || res.status === 403) {
           console.log('認証エラーが発生しました。再ログインが必要です。');
@@ -701,7 +721,9 @@ const FitShareApp = () => {
     console.log('理想の体像アップロード開始:', {
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      fileType: file.type,
+      currentUser: currentUser,
+      authToken: authToken ? '設定済み' : '未設定'
     });
 
     if (file.size > 15 * 1024 * 1024) {
@@ -717,7 +739,7 @@ const FitShareApp = () => {
 
       const res = await fetch(`${SERVER_URL}/api/users/ideal-body`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: getHeaders(false), // Content-Typeを除外してFormDataに任せる
         body: formData,
       });
 
