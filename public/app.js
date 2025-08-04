@@ -1079,8 +1079,18 @@ const FitShareApp = () => {
                   { className: "flex items-center space-x-2 ml-2 pl-2 sm:ml-4 sm:pl-4 border-l border-gray-300" },
                   React.createElement(
                     "div",
-                    { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm" },
-                    currentUser.avatar || currentUser.username.charAt(0).toUpperCase()
+                    { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden" },
+                    currentUser.avatar && currentUser.avatar !== currentUser.username.charAt(0).toUpperCase()
+                      ? React.createElement("img", {
+                          src: currentUser.avatar,
+                          alt: "アバター",
+                          className: "w-full h-full object-cover rounded-full",
+                          onError: (e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.textContent = currentUser.username.charAt(0).toUpperCase();
+                          }
+                        })
+                      : currentUser.username.charAt(0).toUpperCase()
                   ),
                   React.createElement(
                     "span",

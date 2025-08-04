@@ -1,4 +1,4 @@
-[dotenv@17.2.0] injecting env (8) from .env (tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild)
+[dotenv@17.2.0] injecting env (8) from .env (tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] })
 🔧 画像ストレージ設定:
   - Cloudinary Cloud Name: dqo3bdgwi
   - Cloudinary API Key: 設定済み
@@ -21,21 +21,21 @@ req.file: {
   originalname: '1753329266567-118974451.jpeg',
   encoding: '7bit',
   mimetype: 'image/jpeg',
-  path: 'https://res.cloudinary.com/dqo3bdgwi/image/upload/v1754308307/fitshare/1754308306486-800077020-1753329266567-118974451.jpeg.jpg',
+  path: 'https://res.cloudinary.com/dqo3bdgwi/image/upload/v1754308912/fitshare/1754308912063-117097925-1753329266567-118974451.jpeg.jpg',
   size: 7018,
-  filename: 'fitshare/1754308306486-800077020-1753329266567-118974451.jpeg'
+  filename: 'fitshare/1754308912063-117097925-1753329266567-118974451.jpeg'
 }
 req.user: {
   userId: '68909ec97b3bfcc3b88cfea4',
   email: 'test@example.com',
-  iat: 1754308297,
-  exp: 1754913097
+  iat: 1754308334,
+  exp: 1754913134
 }
 ファイル情報: {
   originalname: '1753329266567-118974451.jpeg',
   mimetype: 'image/jpeg',
   size: 7018,
-  filename: 'fitshare/1754308306486-800077020-1753329266567-118974451.jpeg'
+  filename: 'fitshare/1754308912063-117097925-1753329266567-118974451.jpeg'
 }
-新しいアバターURL: /uploads/fitshare/1754308306486-800077020-1753329266567-118974451.jpeg
+新しいアバターURL: https://res.cloudinary.com/dqo3bdgwi/image/upload/v1754308912/fitshare/1754308912063-117097925-1753329266567-118974451.jpeg.jpg
 アバター更新成功

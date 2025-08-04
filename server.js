@@ -1140,8 +1140,8 @@ app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async 
       }
     }
 
-    // 新しいアバターのURLを保存
-    const avatarUrl = getImagePath(req.file.filename);
+    // 新しいアバターのURLを保存（Cloudinaryの場合はpathを使用）
+    const avatarUrl = req.file.path || getImagePath(req.file.filename);
     console.log('新しいアバターURL:', avatarUrl);
     
     user.avatar = avatarUrl;
@@ -1194,8 +1194,8 @@ app.post('/api/users/ideal-body', authenticateToken, upload.single('idealBody'),
       }
     }
 
-    // 新しい理想の体像のURLを保存
-    const imageUrl = getImagePath(req.file.filename);
+    // 新しい理想の体像のURLを保存（Cloudinaryの場合はpathを使用）
+    const imageUrl = req.file.path || getImagePath(req.file.filename);
     console.log('新しい理想の体像URL:', imageUrl);
     
     user.idealBodyImage = imageUrl;

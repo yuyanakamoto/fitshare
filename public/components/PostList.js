@@ -85,9 +85,19 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
             "div",
             {
               className:
-                "w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg",
+                "w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg overflow-hidden",
             },
-            displayAvatar || displayUser.charAt(0).toUpperCase()
+            displayAvatar && displayAvatar !== displayUser.charAt(0).toUpperCase()
+              ? React.createElement("img", {
+                  src: displayAvatar,
+                  alt: "アバター",
+                  className: "w-full h-full object-cover rounded-full",
+                  onError: (e) => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.textContent = displayUser.charAt(0).toUpperCase();
+                  }
+                })
+              : displayUser.charAt(0).toUpperCase()
           ),
           React.createElement(
             "div",
