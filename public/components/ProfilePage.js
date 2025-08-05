@@ -164,12 +164,21 @@ const ProfilePage = ({
     }
   }, [baseTargetUser?.id]);
 
-  // 初回読み込み時にユーザーデータを更新（baseTargetUserが変わった時のみ）
+  // 初回読み込み時とbaseTargetUserが変わった時にユーザーデータを更新
   React.useEffect(() => {
     if (baseTargetUser?.id) {
+      console.log('📍 ProfilePage: ユーザーデータを更新開始:', baseTargetUser.id);
       refreshUserData();
     }
   }, [baseTargetUser?.id]);
+
+  // プロフィールページに戻ってきた時もデータを更新
+  React.useEffect(() => {
+    if (baseTargetUser?.id) {
+      console.log('📍 ProfilePage: マウント時にデータ更新');
+      refreshUserData();
+    }
+  }, []);
   
   // デバッグログ
   React.useEffect(() => {
@@ -358,37 +367,33 @@ const ProfilePage = ({
           "div",
           { className: "relative w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg overflow-hidden" },
           (() => {
-            // アバターURLが有効な文字列かチェック
-            const avatarUrl = targetUser.avatar;
-            const isValidAvatarUrl = avatarUrl && 
-                                   typeof avatarUrl === 'string' && 
-                                   avatarUrl.length > 1 && 
-                                   (avatarUrl.startsWith('http') || avatarUrl.startsWith('/'));
+            // PostListと同じロジックを使用（シンプルな条件チェック）
+            const displayAvatar = targetUser.avatar;
+            const displayUser = targetUser.username;
             
             console.log('プロフィールアバター表示判定:', {
-              avatar: avatarUrl,
-              avatarType: typeof avatarUrl,
-              avatarLength: avatarUrl ? avatarUrl.length : 0,
-              isValidUrl: isValidAvatarUrl,
-              username: targetUser.username,
-              firstChar: targetUser.username.charAt(0).toUpperCase()
+              avatar: displayAvatar,
+              avatarType: typeof displayAvatar,
+              avatarLength: displayAvatar ? displayAvatar.length : 0,
+              username: displayUser,
+              firstChar: displayUser ? displayUser.charAt(0).toUpperCase() : '?',
+              condition: displayAvatar && displayAvatar !== displayUser.charAt(0).toUpperCase()
             });
             
-            if (isValidAvatarUrl) {
-              return React.createElement("img", {
-                src: avatarUrl,
-                alt: `${targetUser.username}のアバター`,
-                className: "w-full h-full object-cover",
-                onLoad: () => console.log('✅ プロフィールアバター読み込み成功:', avatarUrl),
-                onError: (e) => {
-                  console.error('❌ プロフィールアバター読み込み失敗:', avatarUrl);
-                  e.target.style.display = 'none';
-                  e.target.parentElement.textContent = targetUser.username.charAt(0).toUpperCase();
-                }
-              });
-            } else {
-              return targetUser.username.charAt(0).toUpperCase();
-            }
+            // PostListと同じ条件：avatar値があり、かつユーザー名の最初の文字と異なる場合は画像表示
+            return displayAvatar && displayAvatar !== displayUser.charAt(0).toUpperCase()
+              ? React.createElement("img", {
+                  src: displayAvatar,
+                  alt: `${displayUser}のアバター`,
+                  className: "w-full h-full object-cover",
+                  onLoad: () => console.log('✅ プロフィールアバター読み込み成功:', displayAvatar),
+                  onError: (e) => {
+                    console.error('❌ プロフィールアバター読み込み失敗:', displayAvatar);
+                    e.target.style.display = 'none';
+                    e.target.parentElement.textContent = displayUser.charAt(0).toUpperCase();
+                  }
+                })
+              : displayUser.charAt(0).toUpperCase();
           })(),
           // アバター変更ボタン（自分のプロフィールの場合のみ）
           isOwnProfile && onAvatarUpload && React.createElement(
