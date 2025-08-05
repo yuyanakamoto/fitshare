@@ -164,10 +164,12 @@ const ProfilePage = ({
     }
   }, [baseTargetUser?.id]);
 
-  // 初回読み込み時にユーザーデータを更新
+  // 初回読み込み時にユーザーデータを更新（baseTargetUserが変わった時のみ）
   React.useEffect(() => {
-    refreshUserData();
-  }, [refreshUserData]);
+    if (baseTargetUser?.id) {
+      refreshUserData();
+    }
+  }, [baseTargetUser?.id]);
   
   // デバッグログ
   React.useEffect(() => {
@@ -395,12 +397,15 @@ const ProfilePage = ({
             React.createElement("input", {
               type: "file",
               accept: "image/*",
-              onChange: async (e) => {
+              onChange: (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                  await onAvatarUpload(file);
-                  // アバター更新後にデータを更新
-                  refreshUserData();
+                  onAvatarUpload(file).then(() => {
+                    // アバター更新後にデータを更新
+                    refreshUserData();
+                  }).catch(error => {
+                    console.error('Avatar upload error:', error);
+                  });
                 }
                 // ファイル選択をリセット
                 e.target.value = "";
