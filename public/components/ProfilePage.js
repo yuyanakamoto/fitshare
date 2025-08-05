@@ -128,20 +128,64 @@ const ProfilePage = ({
     setShowCustomInput([false]);
   };
 
+  // ユーザーデータ更新用の状態
+  const [targetUserData, setTargetUserData] = React.useState(null);
+
   // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
-  const targetUser = viewingUser || currentUser;
+  const baseTargetUser = viewingUser || currentUser;
+  const targetUser = targetUserData || baseTargetUser;
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
+  
+  // ユーザーデータを最新に更新する関数
+  const refreshUserData = React.useCallback(async () => {
+    if (!baseTargetUser?.id) return;
+    
+    try {
+      const token = localStorage.getItem('fitShareToken');
+      const response = await fetch(`/api/users/${baseTargetUser.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('✅ 最新ユーザーデータを取得:', {
+          userId: userData.id,
+          username: userData.username,
+          avatar: userData.avatar,
+          avatarType: typeof userData.avatar,
+          hasValidAvatar: userData.avatar && userData.avatar.length > 1
+        });
+        setTargetUserData(userData);
+      }
+    } catch (error) {
+      console.error('❌ ユーザーデータ更新エラー:', error);
+    }
+  }, [baseTargetUser?.id]);
+
+  // 初回読み込み時にユーザーデータを更新
+  React.useEffect(() => {
+    refreshUserData();
+  }, [refreshUserData]);
   
   // デバッグログ
   React.useEffect(() => {
-    console.log('ProfilePage デバッグ:', {
+    console.log('📋 ProfilePage 詳細デバッグ:', {
       currentUser: currentUser,
+      currentUserAvatar: currentUser?.avatar,
+      currentUserAvatarType: typeof currentUser?.avatar,
       viewingUser: viewingUser,
+      viewingUserAvatar: viewingUser?.avatar,
+      baseTargetUser: baseTargetUser,
+      targetUserData: targetUserData,
       targetUser: targetUser,
       targetUserAvatar: targetUser?.avatar,
-      isOwnProfile: isOwnProfile
+      targetUserAvatarType: typeof targetUser?.avatar,
+      isOwnProfile: isOwnProfile,
+      localStorage_user: JSON.parse(localStorage.getItem("fitShareUser") || 'null')
     });
-  }, [currentUser, viewingUser, targetUser]);
+  }, [currentUser, viewingUser, baseTargetUser, targetUserData, targetUser]);
   
   // 対象ユーザーの投稿のみフィルタリング
   const userPosts = posts.filter(post => {
@@ -312,27 +356,37 @@ const ProfilePage = ({
           "div",
           { className: "relative w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg overflow-hidden" },
           (() => {
-            const shouldShowImage = targetUser.avatar && targetUser.avatar !== targetUser.username.charAt(0).toUpperCase();
-            console.log('アバター表示判定:', {
-              avatar: targetUser.avatar,
+            // アバターURLが有効な文字列かチェック
+            const avatarUrl = targetUser.avatar;
+            const isValidAvatarUrl = avatarUrl && 
+                                   typeof avatarUrl === 'string' && 
+                                   avatarUrl.length > 1 && 
+                                   (avatarUrl.startsWith('http') || avatarUrl.startsWith('/'));
+            
+            console.log('プロフィールアバター表示判定:', {
+              avatar: avatarUrl,
+              avatarType: typeof avatarUrl,
+              avatarLength: avatarUrl ? avatarUrl.length : 0,
+              isValidUrl: isValidAvatarUrl,
               username: targetUser.username,
-              firstChar: targetUser.username.charAt(0).toUpperCase(),
-              shouldShowImage: shouldShowImage
+              firstChar: targetUser.username.charAt(0).toUpperCase()
             });
             
-            return shouldShowImage
-              ? React.createElement("img", {
-                  src: targetUser.avatar,
-                  alt: `${targetUser.username}のアバター`,
-                  className: "w-full h-full object-cover",
-                  onLoad: () => console.log('アバター画像読み込み成功:', targetUser.avatar),
-                  onError: (e) => {
-                    console.error("アバター画像の読み込みに失敗:", targetUser.avatar);
-                    e.target.style.display = 'none';
-                    e.target.parentElement.textContent = targetUser.username.charAt(0).toUpperCase();
-                  }
-                })
-              : targetUser.username.charAt(0).toUpperCase();
+            if (isValidAvatarUrl) {
+              return React.createElement("img", {
+                src: avatarUrl,
+                alt: `${targetUser.username}のアバター`,
+                className: "w-full h-full object-cover",
+                onLoad: () => console.log('✅ プロフィールアバター読み込み成功:', avatarUrl),
+                onError: (e) => {
+                  console.error('❌ プロフィールアバター読み込み失敗:', avatarUrl);
+                  e.target.style.display = 'none';
+                  e.target.parentElement.textContent = targetUser.username.charAt(0).toUpperCase();
+                }
+              });
+            } else {
+              return targetUser.username.charAt(0).toUpperCase();
+            }
           })(),
           // アバター変更ボタン（自分のプロフィールの場合のみ）
           isOwnProfile && onAvatarUpload && React.createElement(
@@ -341,10 +395,12 @@ const ProfilePage = ({
             React.createElement("input", {
               type: "file",
               accept: "image/*",
-              onChange: (e) => {
+              onChange: async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                  onAvatarUpload(file);
+                  await onAvatarUpload(file);
+                  // アバター更新後にデータを更新
+                  refreshUserData();
                 }
                 // ファイル選択をリセット
                 e.target.value = "";

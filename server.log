@@ -15,3 +15,9 @@ URL: http://localhost:3001
 =====================================
   
 MongoDBに接続しました
+MongoDBから切断されました
+SIGTERM signal received: closing HTTP server
+HTTP server closed
+Socket.io connections closed
+MongoDBから切断されました
+MongoDB connection closed
