@@ -624,6 +624,60 @@ const FitShareApp = () => {
     }
   };
 
+  // コメントのいいね機能
+  const handleCommentLike = async (postId, commentId) => {
+    if (!currentUser) {
+      setShowAuthForm(true);
+      return;
+    }
+
+    try {
+      console.log('コメントいいね処理開始:', { postId, commentId });
+      
+      const res = await fetch(`${SERVER_URL}/api/posts/${postId}/comments/${commentId}/like`, {
+        method: "POST",
+        headers: getHeaders(),
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.log('認証エラーが発生しました。再ログインが必要です。');
+          localStorage.removeItem('fitShareToken');
+          localStorage.removeItem('fitShareUser');
+          setAuthToken('');
+          setCurrentUser(null);
+          setShowAuthForm(true);
+          alert('セッションが切れました。再度ログインしてください。');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      const updatedComment = await res.json();
+      console.log('コメントいいね処理成功:', updatedComment);
+      
+      // postsを更新してコメントのいいね状態を反映
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment => 
+                comment._id === commentId 
+                  ? { ...comment, ...updatedComment }
+                  : comment
+              )
+            };
+          }
+          return post;
+        })
+      );
+      
+    } catch (error) {
+      console.error("コメントいいねの処理に失敗しました:", error);
+    }
+  };
+
   // アバター画像のアップロード
   const handleAvatarUpload = async (file) => {
     if (!currentUser) {
@@ -1263,7 +1317,8 @@ const FitShareApp = () => {
               onDelete: handleDelete,
               onImageClick: setModalImage,
               onUserClick: handleViewUserProfile,
-              onAddComment: handleAddComment
+              onAddComment: handleAddComment,
+              onCommentLike: handleCommentLike
             })
           )
     )

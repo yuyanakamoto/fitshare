@@ -341,6 +341,10 @@ const postSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    avatar: {
+      type: String,
+      default: ''
+    },
     text: {
       type: String,
       required: true,
@@ -349,6 +353,14 @@ const postSchema = new mongoose.Schema({
     timestamp: {
       type: Date,
       default: Date.now
+    },
+    likedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    likeCount: {
+      type: Number,
+      default: 0
     }
   }]
 });
@@ -608,7 +620,13 @@ app.get('/api/posts', async (req, res) => {
       image: getImagePath(post.image),
       displayTime: calculateDisplayTime(post.timestamp),
       // 無効なlikedByエントリを除外
-      likedBy: (post.likedBy || []).filter(user => user && user._id)
+      likedBy: (post.likedBy || []).filter(user => user && user._id),
+      // コメントのいいね状態も正規化
+      comments: (post.comments || []).map(comment => ({
+        ...comment,
+        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        likeCount: comment.likeCount || 0
+      }))
     }));
     
     res.json(normalizedPosts);
@@ -1078,8 +1096,11 @@ app.post('/api/posts/:id/comment', authenticateToken, async (req, res) => {
     const newComment = {
       userId: req.user.userId,
       username: user.username,
+      avatar: user.avatar, // ユーザーのアバターを追加
       text: text.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      likedBy: [], // いいね機能用
+      likeCount: 0 // いいね機能用
     };
     
     post.comments.push(newComment);
@@ -1118,54 +1139,82 @@ app.get('/api/posts/:id/comments', async (req, res) => {
 
 // アバター画像のアップロード
 app.post('/api/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
-  console.log('アバターアップロード開始');
-  console.log('req.file:', req.file);
-  console.log('req.user:', req.user);
+  console.group('🔍 アバターアップロード開始');
+  console.log('📤 基本情報:', {
+    userId: req.user.userId,
+    timestamp: new Date().toISOString()
+  });
+  console.log('📋 ファイル情報:', req.file);
+  console.log('📋 ユーザー情報:', req.user);
   
   try {
     if (!req.file) {
-      console.log('ファイルが見つかりません');
+      console.log('❌ ファイルが見つかりません');
+      console.groupEnd();
       return res.status(400).json({ error: 'アバター画像が必要です' });
     }
 
-    console.log('ファイル情報:', {
+    console.log('📋 詳細ファイル情報:', {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size,
-      filename: req.file.filename
+      filename: req.file.filename,
+      path: req.file.path,
+      destination: req.file.destination
     });
 
     const user = await User.findById(req.user.userId);
     if (!user) {
-      console.log('ユーザーが見つかりません:', req.user.userId);
+      console.log('❌ ユーザーが見つかりません:', req.user.userId);
+      console.groupEnd();
       return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
+    
+    console.log('📋 現在のユーザー情報:', {
+      id: user.id,
+      username: user.username,
+      currentAvatar: user.avatar,
+      avatarType: typeof user.avatar
+    });
 
     // 既存のアバターがあれば削除
     if (user.avatar && user.avatar.startsWith('https://res.cloudinary.com')) {
       try {
         const publicId = user.avatar.match(/\/v\d+\/(.+)\./)[1];
-        console.log('既存アバター削除中:', publicId);
+        console.log('🗑️  既存アバター削除中:', publicId);
         await cloudinary.uploader.destroy(publicId);
+        console.log('✅ 既存アバター削除完了');
       } catch (deleteError) {
-        console.warn('既存アバターの削除に失敗:', deleteError);
+        console.warn('⚠️  既存アバターの削除に失敗:', deleteError);
       }
     }
 
     // 新しいアバターのURLを保存（Cloudinaryの場合はpathを使用）
     const avatarUrl = req.file.path || getImagePath(req.file.filename);
-    console.log('新しいアバターURL:', avatarUrl);
+    console.log('🔗 新しいアバターURL:', {
+      url: avatarUrl,
+      isCloudinary: avatarUrl.startsWith('https://res.cloudinary.com'),
+      urlLength: avatarUrl.length
+    });
     
+    console.log('💾 データベース更新開始');
     user.avatar = avatarUrl;
     await user.save();
 
-    console.log('アバター更新成功');
+    console.log('✅ アバター更新成功:', {
+      userId: user.id,
+      newAvatar: user.avatar,
+      savedSuccessfully: true
+    });
+    
+    console.groupEnd();
     res.json({ 
       message: 'アバターが更新されました',
       avatar: avatarUrl 
     });
   } catch (error) {
-    console.error('アバターアップロードエラー:', error);
+    console.error('❌ アバターアップロードエラー:', error);
+    console.groupEnd();
     res.status(500).json({ error: 'アバターのアップロードに失敗しました', details: error.message });
   }
 });
@@ -1249,6 +1298,62 @@ app.delete('/api/users/ideal-body', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('理想の体像削除エラー:', error);
     res.status(500).json({ error: '理想の体像の削除に失敗しました' });
+  }
+});
+
+// コメントのいいね/いいね解除
+app.post('/api/posts/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    const userId = req.user.id;
+
+    console.log('コメントいいね処理:', { postId, commentId, userId });
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ error: '投稿が見つかりません' });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'コメントが見つかりません' });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const isLiked = comment.likedBy.includes(userObjectId);
+
+    if (isLiked) {
+      // いいねを削除
+      comment.likedBy.pull(userObjectId);
+      comment.likeCount = Math.max(0, comment.likeCount - 1);
+      console.log('コメントのいいねを削除:', { commentId, userId, newCount: comment.likeCount });
+    } else {
+      // いいねを追加
+      comment.likedBy.push(userObjectId);
+      comment.likeCount = comment.likeCount + 1;
+      console.log('コメントにいいねを追加:', { commentId, userId, newCount: comment.likeCount });
+    }
+
+    await post.save();
+    
+    // 更新されたコメント情報を返す
+    const updatedComment = {
+      _id: comment._id,
+      userId: comment.userId,
+      username: comment.username,
+      text: comment.text,
+      timestamp: comment.timestamp,
+      likedBy: comment.likedBy,
+      likeCount: comment.likeCount,
+      isLikedByCurrentUser: !isLiked
+    };
+
+    console.log('コメントいいね処理完了:', updatedComment);
+    res.json(updatedComment);
+
+  } catch (error) {
+    console.error('コメントいいねエラー:', error);
+    res.status(500).json({ error: 'コメントのいいね処理に失敗しました' });
   }
 });
 
@@ -1345,14 +1450,41 @@ app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
 
 // ユーザー情報の取得
 app.get('/api/users/:userId', authenticateToken, async (req, res) => {
+  console.group('🔍 ユーザー情報取得API開始');
+  console.log('📤 リクエスト情報:', {
+    userId: req.params.userId,
+    requestingUser: req.user.userId,
+    timestamp: new Date().toISOString()
+  });
+  
   try {
     const user = await User.findById(req.params.userId).select('-password');
+    console.log('📋 データベースクエリ結果:', {
+      userFound: !!user,
+      userId: user?.id,
+      username: user?.username,
+      email: user?.email,
+      avatar: user?.avatar,
+      avatarType: typeof user?.avatar,
+      avatarLength: user?.avatar?.length,
+      idealBodyImage: user?.idealBodyImage,
+      hasAvatar: !!user?.avatar,
+      avatarIsString: typeof user?.avatar === 'string',
+      avatarNotEmpty: user?.avatar && user?.avatar.length > 0
+    });
+    
     if (!user) {
+      console.log('❌ ユーザーが見つかりません');
+      console.groupEnd();
       return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
+    
+    console.log('✅ ユーザー情報を正常に取得、レスポンス送信');
+    console.groupEnd();
     res.json(user);
   } catch (error) {
-    console.error('ユーザー情報取得エラー:', error);
+    console.error('❌ ユーザー情報取得エラー:', error);
+    console.groupEnd();
     res.status(500).json({ error: 'ユーザー情報の取得に失敗しました' });
   }
 });
@@ -1431,7 +1563,13 @@ io.on('connection', async (socket) => {
       image: getImagePath(post.image),
       displayTime: calculateDisplayTime(post.timestamp),
       // 無効なlikedByエントリを除外
-      likedBy: (post.likedBy || []).filter(user => user && user._id)
+      likedBy: (post.likedBy || []).filter(user => user && user._id),
+      // コメントのいいね状態も正規化
+      comments: (post.comments || []).map(comment => ({
+        ...comment,
+        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        likeCount: comment.likeCount || 0
+      }))
     }));
     
     console.log(`Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);

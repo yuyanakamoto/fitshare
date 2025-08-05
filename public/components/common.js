@@ -160,7 +160,7 @@ const CommentWithLineBreaks = ({ comment }) => {
 };
 
 // コメントセクションコンポーネント（Instagram風デザイン）
-const CommentSection = ({ post, currentUser, onAddComment, onLike, hasLiked, connected }) => {
+const CommentSection = ({ post, currentUser, onAddComment, onLike, hasLiked, connected, onCommentLike }) => {
   const [showComments, setShowComments] = React.useState(false);
   const [showLikes, setShowLikes] = React.useState(false);
   const [commentText, setCommentText] = React.useState("");
@@ -353,8 +353,34 @@ const CommentSection = ({ post, currentUser, onAddComment, onLike, hasLiked, con
           // ユーザーアバター（小）
           React.createElement(
             "div",
-            { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0" },
-            comment.username.charAt(0).toUpperCase()
+            { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 overflow-hidden" },
+            (() => {
+              // コメントユーザーのアバター表示判定
+              const displayAvatar = comment.avatar;
+              const displayUser = comment.username;
+              const firstChar = displayUser ? displayUser.charAt(0).toUpperCase() : '?';
+              const shouldShowImage = displayAvatar && displayAvatar !== firstChar;
+              
+              console.log('🖼️ コメントアバター表示判定:', {
+                commentUser: displayUser,
+                avatar: displayAvatar,
+                shouldShowImage: shouldShowImage,
+                firstChar: firstChar
+              });
+              
+              return shouldShowImage
+                ? React.createElement("img", {
+                    src: displayAvatar,
+                    alt: `${displayUser}のアバター`,
+                    className: "w-full h-full object-cover",
+                    onError: (e) => {
+                      console.error('❌ コメントアバター読み込み失敗:', displayAvatar);
+                      e.target.style.display = 'none';
+                      e.target.parentElement.textContent = firstChar;
+                    }
+                  })
+                : firstChar;
+            })()
           ),
           // コメント内容
           React.createElement(
@@ -381,6 +407,34 @@ const CommentSection = ({ post, currentUser, onAddComment, onLike, hasLiked, con
                 "p",
                 { className: "text-gray-800 text-sm" },
                 comment.text
+              )
+            ),
+            // コメントのいいねボタン
+            React.createElement(
+              "div",
+              { className: "flex items-center space-x-2 mt-1" },
+              React.createElement(
+                "button",
+                {
+                  onClick: () => onCommentLike && onCommentLike(post._id, comment._id),
+                  className: `flex items-center space-x-1 text-xs px-2 py-1 rounded-full transition-all duration-200 ${
+                    comment.isLikedByCurrentUser 
+                      ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                      : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                  }`
+                },
+                React.createElement("svg", {
+                  className: `w-3 h-3 ${comment.isLikedByCurrentUser ? 'fill-current' : 'stroke-current fill-none'}`,
+                  viewBox: "0 0 24 24",
+                  strokeWidth: 2
+                },
+                  React.createElement("path", {
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    d: "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                  })
+                ),
+                React.createElement("span", null, comment.likeCount || 0)
               )
             )
           )

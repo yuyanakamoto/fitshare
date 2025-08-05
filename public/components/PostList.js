@@ -1,5 +1,5 @@
 // 投稿リストコンポーネント
-const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick, onUserClick, onAddComment }) => {
+const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onImageClick, onUserClick, onAddComment, onCommentLike }) => {
   
   // 時刻表示関数（コンポーネント内で直接定義）
   const formatTimestamp = (timestamp) => {
@@ -252,7 +252,8 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
               onAddComment: onAddComment,
               onLike: onLike,
               hasLiked: hasLiked,
-              connected: connected
+              connected: connected,
+              onCommentLike: onCommentLike
             })
           )
         )

@@ -133,19 +133,84 @@ const ProfilePage = ({
 
   // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
   const baseTargetUser = viewingUser || currentUser;
+  // 常にtargetUserDataを優先し、存在しない場合のみbaseTargetUserを使用
   const targetUser = targetUserData || baseTargetUser;
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   
+  // 🔍 デバッグ: ユーザーデータの詳細ログ
+  React.useEffect(() => {
+    console.group('🔍 ProfilePage: ユーザーデータ詳細デバッグ');
+    console.log('📋 currentUser:', {
+      data: currentUser,
+      avatar: currentUser?.avatar,
+      avatarType: typeof currentUser?.avatar,
+      avatarLength: currentUser?.avatar?.length,
+      isValidAvatar: currentUser?.avatar && currentUser?.avatar.length > 1
+    });
+    console.log('📋 viewingUser:', {
+      data: viewingUser,
+      avatar: viewingUser?.avatar,
+      avatarType: typeof viewingUser?.avatar,
+      avatarLength: viewingUser?.avatar?.length
+    });
+    console.log('📋 baseTargetUser:', {
+      data: baseTargetUser,
+      avatar: baseTargetUser?.avatar,
+      avatarType: typeof baseTargetUser?.avatar,
+      avatarLength: baseTargetUser?.avatar?.length
+    });
+    console.log('📋 targetUserData (from API):', {
+      data: targetUserData,
+      avatar: targetUserData?.avatar,
+      avatarType: typeof targetUserData?.avatar,
+      avatarLength: targetUserData?.avatar?.length
+    });
+    console.log('📋 targetUser (final):', {
+      data: targetUser,
+      avatar: targetUser?.avatar,
+      avatarType: typeof targetUser?.avatar,
+      avatarLength: targetUser?.avatar?.length,
+      username: targetUser?.username
+    });
+    console.log('📋 localStorage:', {
+      token: localStorage.getItem('fitShareToken') ? '✅ 存在' : '❌ なし',
+      user: JSON.parse(localStorage.getItem('fitShareUser') || 'null')
+    });
+    console.log('📋 その他:', {
+      isOwnProfile,
+      componentMounted: true
+    });
+    console.groupEnd();
+  }, [currentUser, viewingUser, baseTargetUser, targetUserData, targetUser]);
+  
   // ユーザーデータを最新に更新する関数
   const refreshUserData = React.useCallback(async () => {
-    if (!baseTargetUser?.id) return;
+    if (!baseTargetUser?.id) {
+      console.log('🔍 refreshUserData: baseTargetUser.idが存在しないため終了');
+      return;
+    }
+    
+    console.group('🔍 refreshUserData: APIリクエスト開始');
+    console.log('📤 リクエスト情報:', {
+      url: `/api/users/${baseTargetUser.id}`,
+      userId: baseTargetUser.id,
+      baseTargetUser: baseTargetUser
+    });
     
     try {
       const token = localStorage.getItem('fitShareToken');
+      console.log('📋 認証トークン:', token ? '✅ 存在' : '❌ なし');
+      
       const response = await fetch(`/api/users/${baseTargetUser.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
+      });
+      
+      console.log('📥 APIレスポンス:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
       
       if (response.ok) {
@@ -153,21 +218,37 @@ const ProfilePage = ({
         console.log('✅ 最新ユーザーデータを取得:', {
           userId: userData.id,
           username: userData.username,
+          email: userData.email,
           avatar: userData.avatar,
           avatarType: typeof userData.avatar,
-          hasValidAvatar: userData.avatar && userData.avatar.length > 1
+          avatarLength: userData.avatar?.length,
+          hasValidAvatar: userData.avatar && userData.avatar !== userData.username?.charAt(0).toUpperCase(),
+          fullUserData: userData
         });
+        
+        console.log('🔄 targetUserDataを更新');
         setTargetUserData(userData);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ APIエラー:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
       }
     } catch (error) {
       console.error('❌ ユーザーデータ更新エラー:', error);
     }
+    
+    console.groupEnd();
   }, [baseTargetUser?.id]);
 
   // 初回読み込み時とbaseTargetUserが変わった時にユーザーデータを更新
   React.useEffect(() => {
     if (baseTargetUser?.id) {
       console.log('📍 ProfilePage: ユーザーデータを更新開始:', baseTargetUser.id);
+      // 毎回強制的にAPIから最新データを取得
+      setTargetUserData(null);
       refreshUserData();
     }
   }, [baseTargetUser?.id]);
@@ -176,6 +257,7 @@ const ProfilePage = ({
   React.useEffect(() => {
     if (baseTargetUser?.id) {
       console.log('📍 ProfilePage: マウント時にデータ更新');
+      setTargetUserData(null);
       refreshUserData();
     }
   }, []);
@@ -370,30 +452,63 @@ const ProfilePage = ({
             // PostListと同じロジックを使用（シンプルな条件チェック）
             const displayAvatar = targetUser.avatar;
             const displayUser = targetUser.username;
+            const firstChar = displayUser ? displayUser.charAt(0).toUpperCase() : '?';
+            const shouldShowImage = displayAvatar && displayAvatar !== firstChar;
             
-            console.log('プロフィールアバター表示判定:', {
-              avatar: displayAvatar,
-              avatarType: typeof displayAvatar,
-              avatarLength: displayAvatar ? displayAvatar.length : 0,
-              username: displayUser,
-              firstChar: displayUser ? displayUser.charAt(0).toUpperCase() : '?',
-              condition: displayAvatar && displayAvatar !== displayUser.charAt(0).toUpperCase()
+            console.group('🖼️ プロフィールアバター表示判定');
+            console.log('📋 基本情報:', {
+              targetUser: targetUser,
+              displayAvatar: displayAvatar,
+              displayUser: displayUser,
+              firstChar: firstChar
+            });
+            console.log('📋 判定条件:', {
+              'avatar存在': !!displayAvatar,
+              'avatarType': typeof displayAvatar,
+              'avatarLength': displayAvatar ? displayAvatar.length : 0,
+              'avatar値': displayAvatar,
+              'firstChar': firstChar,
+              'avatar !== firstChar': displayAvatar !== firstChar,
+              '最終判定(shouldShowImage)': shouldShowImage
+            });
+            console.log('📋 条件詳細:', {
+              'displayAvatar && displayAvatar !== firstChar': shouldShowImage,
+              '条件分解': {
+                'displayAvatar存在': !!displayAvatar,
+                'displayAvatar値が文字と異なる': displayAvatar !== firstChar
+              }
             });
             
+            if (shouldShowImage) {
+              console.log('✅ 画像を表示します:', displayAvatar);
+            } else {
+              console.log('❌ 文字を表示します:', firstChar);
+            }
+            console.groupEnd();
+            
             // PostListと同じ条件：avatar値があり、かつユーザー名の最初の文字と異なる場合は画像表示
-            return displayAvatar && displayAvatar !== displayUser.charAt(0).toUpperCase()
+            return shouldShowImage
               ? React.createElement("img", {
                   src: displayAvatar,
                   alt: `${displayUser}のアバター`,
                   className: "w-full h-full object-cover",
-                  onLoad: () => console.log('✅ プロフィールアバター読み込み成功:', displayAvatar),
+                  onLoad: () => {
+                    console.log('✅ プロフィールアバター読み込み成功:', {
+                      url: displayAvatar,
+                      element: 'img'
+                    });
+                  },
                   onError: (e) => {
-                    console.error('❌ プロフィールアバター読み込み失敗:', displayAvatar);
+                    console.error('❌ プロフィールアバター読み込み失敗:', {
+                      url: displayAvatar,
+                      error: e,
+                      fallbackChar: firstChar
+                    });
                     e.target.style.display = 'none';
-                    e.target.parentElement.textContent = displayUser.charAt(0).toUpperCase();
+                    e.target.parentElement.textContent = firstChar;
                   }
                 })
-              : displayUser.charAt(0).toUpperCase();
+              : firstChar;
           })(),
           // アバター変更ボタン（自分のプロフィールの場合のみ）
           isOwnProfile && onAvatarUpload && React.createElement(
@@ -405,11 +520,20 @@ const ProfilePage = ({
               onChange: (e) => {
                 const file = e.target.files[0];
                 if (file) {
+                  console.log('🔍 アバターファイル選択:', {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: file.type
+                  });
+                  
                   onAvatarUpload(file).then(() => {
+                    console.log('✅ アバターアップロード完了、データを更新します');
                     // アバター更新後にデータを更新
-                    refreshUserData();
+                    setTimeout(() => {
+                      refreshUserData();
+                    }, 1000); // 1秒待ってからデータ更新
                   }).catch(error => {
-                    console.error('Avatar upload error:', error);
+                    console.error('❌ Avatar upload error:', error);
                   });
                 }
                 // ファイル選択をリセット
