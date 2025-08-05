@@ -132,6 +132,17 @@ const ProfilePage = ({
   const targetUser = viewingUser || currentUser;
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   
+  // デバッグログ
+  React.useEffect(() => {
+    console.log('ProfilePage デバッグ:', {
+      currentUser: currentUser,
+      viewingUser: viewingUser,
+      targetUser: targetUser,
+      targetUserAvatar: targetUser?.avatar,
+      isOwnProfile: isOwnProfile
+    });
+  }, [currentUser, viewingUser, targetUser]);
+  
   // 対象ユーザーの投稿のみフィルタリング
   const userPosts = posts.filter(post => {
     const postUserId = typeof post.userId === 'object' ? post.userId._id : post.userId;
@@ -299,29 +310,30 @@ const ProfilePage = ({
         { className: "flex items-center space-x-4 mb-4" },
         React.createElement(
           "div",
-          { className: "relative" },
-          targetUser.avatar
-            ? React.createElement("img", {
-                src: targetUser.avatar,
-                alt: `${targetUser.username}のアバター`,
-                className: "w-20 h-20 rounded-2xl object-cover shadow-lg",
-                onError: (e) => {
-                  console.error("アバター画像の読み込みに失敗:", targetUser.avatar);
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }
-              })
-            : null,
-          React.createElement(
-            "div",
-            {
-              className: `w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg ${
-                targetUser.avatar ? "hidden" : ""
-              }`,
-              style: targetUser.avatar ? { display: "none" } : {}
-            },
-            targetUser.username.charAt(0).toUpperCase()
-          ),
+          { className: "relative w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg overflow-hidden" },
+          (() => {
+            const shouldShowImage = targetUser.avatar && targetUser.avatar !== targetUser.username.charAt(0).toUpperCase();
+            console.log('アバター表示判定:', {
+              avatar: targetUser.avatar,
+              username: targetUser.username,
+              firstChar: targetUser.username.charAt(0).toUpperCase(),
+              shouldShowImage: shouldShowImage
+            });
+            
+            return shouldShowImage
+              ? React.createElement("img", {
+                  src: targetUser.avatar,
+                  alt: `${targetUser.username}のアバター`,
+                  className: "w-full h-full object-cover",
+                  onLoad: () => console.log('アバター画像読み込み成功:', targetUser.avatar),
+                  onError: (e) => {
+                    console.error("アバター画像の読み込みに失敗:", targetUser.avatar);
+                    e.target.style.display = 'none';
+                    e.target.parentElement.textContent = targetUser.username.charAt(0).toUpperCase();
+                  }
+                })
+              : targetUser.username.charAt(0).toUpperCase();
+          })(),
           // アバター変更ボタン（自分のプロフィールの場合のみ）
           isOwnProfile && onAvatarUpload && React.createElement(
             "div",

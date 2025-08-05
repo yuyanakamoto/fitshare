@@ -699,6 +699,11 @@ const FitShareApp = () => {
       
       // ユーザー情報を更新
       const updatedUser = { ...currentUser, avatar: data.avatar };
+      console.log('ユーザー情報更新:', {
+        before: currentUser,
+        after: updatedUser,
+        avatarUrl: data.avatar
+      });
       setCurrentUser(updatedUser);
       localStorage.setItem("fitShareUser", JSON.stringify(updatedUser));
       
