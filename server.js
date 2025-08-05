@@ -590,7 +590,11 @@ app.get('/api/posts', async (req, res) => {
     
     const posts = await Post.find(query)
       .populate('userId', 'username avatar')
-      .populate('likedBy', 'username avatar')
+      .populate({
+        path: 'likedBy',
+        select: 'username avatar',
+        options: { strictPopulate: false }
+      })
       .sort({ workoutDate: -1, timestamp: -1 })
       .limit(parseInt(limit))
       .skip(skip)
@@ -602,7 +606,9 @@ app.get('/api/posts', async (req, res) => {
     const normalizedPosts = posts.map(post => ({
       ...post,
       image: getImagePath(post.image),
-      displayTime: calculateDisplayTime(post.timestamp)
+      displayTime: calculateDisplayTime(post.timestamp),
+      // 無効なlikedByエントリを除外
+      likedBy: (post.likedBy || []).filter(user => user && user._id)
     }));
     
     res.json(normalizedPosts);
@@ -1030,7 +1036,11 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     
     await post.save();
     await post.populate('userId', 'username avatar');
-    await post.populate('likedBy', 'username avatar');
+    await post.populate({
+      path: 'likedBy',
+      select: 'username avatar',
+      options: { strictPopulate: false }
+    });
     
     const responsePost = post.toObject();
     responsePost.image = getImagePath(responsePost.image);
@@ -1407,7 +1417,11 @@ io.on('connection', async (socket) => {
     // 初期データ送信（全投稿を送信）
     const posts = await Post.find()
       .populate('userId', 'username avatar')
-      .populate('likedBy', 'username avatar')
+      .populate({
+        path: 'likedBy',
+        select: 'username avatar',
+        options: { strictPopulate: false }
+      })
       .sort({ workoutDate: -1, timestamp: -1 })
       .lean();
     
@@ -1415,7 +1429,9 @@ io.on('connection', async (socket) => {
     const normalizedPosts = posts.map(post => ({
       ...post,
       image: getImagePath(post.image),
-      displayTime: calculateDisplayTime(post.timestamp)
+      displayTime: calculateDisplayTime(post.timestamp),
+      // 無効なlikedByエントリを除外
+      likedBy: (post.likedBy || []).filter(user => user && user._id)
     }));
     
     console.log(`Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);

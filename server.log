@@ -1,4 +1,4 @@
-[dotenv@17.2.0] injecting env (8) from .env (tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] })
+[dotenv@17.2.0] injecting env (8) from .env (tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' })
 🔧 画像ストレージ設定:
   - Cloudinary Cloud Name: dqo3bdgwi
   - Cloudinary API Key: 設定済み
@@ -15,3 +15,5 @@ URL: http://localhost:3001
 =====================================
   
 MongoDBに接続しました
+📖 投稿一覧を取得中: { page: 1, limit: 1000, userId: undefined, query: {} }
+取得した投稿数: 36件
