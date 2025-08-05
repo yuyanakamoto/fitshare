@@ -159,9 +159,10 @@ const CommentWithLineBreaks = ({ comment }) => {
   );
 };
 
-// コメントセクションコンポーネント
-const CommentSection = ({ post, currentUser, onAddComment }) => {
+// コメントセクションコンポーネント（Instagram風デザイン）
+const CommentSection = ({ post, currentUser, onAddComment, onLike, hasLiked, connected }) => {
   const [showComments, setShowComments] = React.useState(false);
+  const [showLikes, setShowLikes] = React.useState(false);
   const [commentText, setCommentText] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -182,49 +183,206 @@ const CommentSection = ({ post, currentUser, onAddComment }) => {
 
   return React.createElement(
     "div",
-    { className: "border-t border-gray-100 pt-3 mt-3" },
+    { className: "pt-3" },
     
-    // コメント数とトグルボタン
+    // アクションボタン（いいね・コメント・シェア）
     React.createElement(
       "div",
-      { className: "flex items-center justify-between mb-2" },
+      { className: "flex items-center justify-between mb-3" },
+      React.createElement(
+        "div",
+        { className: "flex items-center space-x-4" },
+        // いいねボタン
+        React.createElement(
+          "button",
+          {
+            onClick: () => onLike(post._id || post.id),
+            className: "flex items-center space-x-2 group transition-colors",
+            disabled: !connected,
+          },
+          React.createElement(Heart, {
+            className: `h-6 w-6 transition-colors ${
+              hasLiked 
+                ? "fill-red-500 text-red-500" 
+                : "text-gray-700 group-hover:text-red-500"
+            }`,
+          }),
+          React.createElement(
+            "button",
+            { 
+              className: "text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors",
+              onClick: () => {
+                if (post.likes > 0) {
+                  setShowLikes(!showLikes);
+                }
+              }
+            },
+            post.likes || 0
+          )
+        ),
+        // コメントボタン
+        React.createElement(
+          "button",
+          {
+            onClick: () => setShowComments(!showComments),
+            className: "flex items-center space-x-2 group transition-colors"
+          },
+          React.createElement(MessageCircle, { 
+            className: `h-6 w-6 text-gray-700 group-hover:text-blue-500 transition-colors ${showComments ? 'text-blue-500' : ''}` 
+          }),
+          React.createElement(
+            "span",
+            { className: "text-sm font-medium text-gray-700" },
+            post.commentCount || 0
+          )
+        )
+      )
+    ),
+
+    // いいね詳細情報（Instagram風）
+    post.likes > 0 && React.createElement(
+      "div",
+      { className: "px-1 mb-2" },
       React.createElement(
         "button",
         {
-          onClick: () => setShowComments(!showComments),
-          className: "flex items-center space-x-1 text-gray-600 hover:text-blue-600 text-sm"
+          onClick: () => setShowLikes(!showLikes),
+          className: "text-sm text-gray-900 hover:text-gray-700 transition-colors"
         },
-        React.createElement(MessageCircle, { className: "h-4 w-4" }),
-        React.createElement("span", {}, `${post.commentCount || 0}件のコメント`)
+        post.likes === 1 
+          ? React.createElement(
+              "span",
+              {},
+              React.createElement("span", { className: "font-semibold" }, (post.likedBy?.[0]?.username || "誰か")), 
+              "がいいねしました"
+            )
+          : React.createElement(
+              "span",
+              {},
+              React.createElement("span", { className: "font-semibold" }, post.likes.toLocaleString()),
+              "人がいいねしました"
+            )
+      )
+    ),
+
+    // いいねした人一覧（表示時のみ）
+    showLikes && React.createElement(
+      "div",
+      { className: "bg-gray-50 rounded-2xl p-4 mb-3" },
+      React.createElement(
+        "div",
+        { className: "flex items-center justify-between mb-3" },
+        React.createElement(
+          "h4",
+          { className: "font-semibold text-gray-900" },
+          "いいね"
+        ),
+        React.createElement(
+          "button",
+          {
+            onClick: () => setShowLikes(false),
+            className: "text-gray-500 hover:text-gray-700"
+          },
+          React.createElement("svg", {
+            className: "w-5 h-5",
+            fill: "none",
+            stroke: "currentColor",
+            viewBox: "0 0 24 24"
+          },
+            React.createElement("path", {
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              strokeWidth: 2,
+              d: "M6 18L18 6M6 6l12 12"
+            })
+          )
+        )
+      ),
+      React.createElement(
+        "div",
+        { className: "space-y-3 max-h-60 overflow-y-auto" },
+        (post.likedBy || []).map((user, index) =>
+          React.createElement(
+            "div",
+            { key: index, className: "flex items-center space-x-3" },
+            // ユーザーアバター
+            React.createElement(
+              "div",
+              { className: "w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden" },
+              user.avatar && user.avatar !== user.username.charAt(0).toUpperCase()
+                ? React.createElement("img", {
+                    src: user.avatar,
+                    alt: `${user.username}のアバター`,
+                    className: "w-full h-full object-cover",
+                    onError: (e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.textContent = user.username.charAt(0).toUpperCase();
+                    }
+                  })
+                : user.username.charAt(0).toUpperCase()
+            ),
+            // ユーザー名
+            React.createElement(
+              "div",
+              { className: "flex-1" },
+              React.createElement(
+                "span",
+                { className: "font-medium text-gray-900" },
+                user.username
+              )
+            ),
+            // フォローボタン（現在のユーザーでない場合）
+            currentUser && user._id !== currentUser.id && React.createElement(
+              "button",
+              { className: "px-4 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors" },
+              "フォロー"
+            )
+          )
+        )
       )
     ),
 
     // コメント一覧（表示時のみ）
     showComments && React.createElement(
       "div",
-      { className: "space-y-2 mb-3" },
+      { className: "space-y-3 mb-4" },
       (post.comments || []).map((comment, index) =>
         React.createElement(
           "div",
-          { key: index, className: "bg-gray-50 rounded-lg p-2 text-sm" },
+          { key: index, className: "flex space-x-3" },
+          // ユーザーアバター（小）
           React.createElement(
             "div",
-            { className: "flex items-center space-x-1 mb-1" },
-            React.createElement(
-              "span", 
-              { className: "font-semibold text-blue-600" }, 
-              comment.username
-            ),
-            React.createElement(
-              "span", 
-              { className: "text-gray-400 text-xs" }, 
-              window.formatTimestamp ? window.formatTimestamp(comment.timestamp) : "時刻不明"
-            )
+            { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0" },
+            comment.username.charAt(0).toUpperCase()
           ),
+          // コメント内容
           React.createElement(
-            "p",
-            { className: "text-gray-700" },
-            comment.text
+            "div",
+            { className: "flex-1 min-w-0" },
+            React.createElement(
+              "div",
+              { className: "bg-gray-50 rounded-2xl px-3 py-2" },
+              React.createElement(
+                "div",
+                { className: "flex items-baseline space-x-2 mb-1" },
+                React.createElement(
+                  "span", 
+                  { className: "font-semibold text-gray-900 text-sm" }, 
+                  comment.username
+                ),
+                React.createElement(
+                  "span", 
+                  { className: "text-gray-500 text-xs" }, 
+                  window.formatTimestamp ? window.formatTimestamp(comment.timestamp) : "時刻不明"
+                )
+              ),
+              React.createElement(
+                "p",
+                { className: "text-gray-800 text-sm" },
+                comment.text
+              )
+            )
           )
         )
       )
@@ -233,28 +391,42 @@ const CommentSection = ({ post, currentUser, onAddComment }) => {
     // コメント入力フォーム
     showComments && currentUser && React.createElement(
       "form",
-      { onSubmit: handleSubmitComment, className: "flex space-x-2" },
+      { onSubmit: handleSubmitComment, className: "flex space-x-3 mt-3" },
+      // ユーザーアバター（小）
+      React.createElement(
+        "div",
+        { className: "w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 overflow-hidden" },
+        currentUser.avatar && currentUser.avatar !== currentUser.username.charAt(0).toUpperCase()
+          ? React.createElement("img", {
+              src: currentUser.avatar,
+              alt: "アバター",
+              className: "w-full h-full object-cover",
+              onError: (e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.textContent = currentUser.username.charAt(0).toUpperCase();
+              }
+            })
+          : currentUser.username.charAt(0).toUpperCase()
+      ),
+      // 入力フィールド
       React.createElement("input", {
         type: "text",
         value: commentText,
         onChange: (e) => setCommentText(e.target.value),
-        placeholder: "コメントを入力...",
-        className: "flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+        placeholder: "コメントを追加...",
+        className: "flex-1 px-4 py-2 bg-gray-50 border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors",
         maxLength: 200,
         disabled: isSubmitting
       }),
-      React.createElement(
+      // 送信ボタン
+      commentText.trim() && React.createElement(
         "button",
         {
           type: "submit",
-          disabled: !commentText.trim() || isSubmitting,
-          className: `px-4 py-2 text-sm font-medium rounded-lg ${
-            commentText.trim() && !isSubmitting
-              ? "bg-blue-600 text-white hover:bg-blue-700"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`
+          disabled: isSubmitting,
+          className: "px-4 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
         },
-        isSubmitting ? "送信中..." : "送信"
+        isSubmitting ? "送信中..." : "投稿"
       )
     )
   );

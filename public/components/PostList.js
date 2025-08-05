@@ -245,35 +245,14 @@ const PostList = ({ posts, currentUser, connected, onLike, onEdit, onDelete, onI
                 comment: post.comment,
               }),
 
-            React.createElement(
-              "div",
-              { className: "flex items-center space-x-4" },
-              React.createElement(
-                "button",
-                {
-                  onClick: () => onLike(post._id || post.id),
-                  className:
-                    "flex items-center space-x-1 text-gray-600 active:text-red-500",
-                  disabled: !connected,
-                },
-                React.createElement(Heart, {
-                  className: `h-5 w-5 ${
-                    hasLiked ? "fill-red-500 text-red-500" : ""
-                  }`,
-                }),
-                React.createElement(
-                  "span",
-                  { className: "text-sm" },
-                  post.likes || 0
-                )
-              ),
-            ),
-            
-            // コメントセクション
+            // コメントセクション（いいねボタンも含む）
             React.createElement(CommentSection, {
               post: post,
               currentUser: currentUser,
-              onAddComment: onAddComment
+              onAddComment: onAddComment,
+              onLike: onLike,
+              hasLiked: hasLiked,
+              connected: connected
             })
           )
         )

@@ -346,7 +346,25 @@ const ProfilePage = ({
                 htmlFor: "avatar-upload",
                 className: "w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 shadow-lg transition-colors"
               },
-              React.createElement("span", { className: "text-sm" }, "📷")
+              React.createElement("svg", {
+                className: "w-4 h-4",
+                fill: "none",
+                stroke: "currentColor",
+                viewBox: "0 0 24 24"
+              },
+                React.createElement("path", {
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  strokeWidth: 2,
+                  d: "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                }),
+                React.createElement("path", {
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  strokeWidth: 2,
+                  d: "M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                })
+              )
             )
           )
         ),
@@ -464,7 +482,6 @@ const ProfilePage = ({
       React.createElement(
         "h2",
         { className: "text-2xl font-bold mb-6 flex items-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent" },
-        React.createElement("span", { className: "mr-3 text-purple-500" }, "💪"),
         "理想の体"
       ),
       React.createElement(
@@ -473,34 +490,95 @@ const ProfilePage = ({
         (targetUser.idealBodyImage && isOwnProfile) || (targetUser.idealBodyImage && !isOwnProfile)
           ? React.createElement(
               "div",
-              { className: "relative inline-block" },
-              React.createElement("img", {
-                src: targetUser.idealBodyImage,
-                alt: "理想の体像",
-                className: "max-w-full h-64 sm:h-80 object-cover rounded-2xl shadow-lg cursor-pointer",
-                onClick: () => onImageClick(targetUser.idealBodyImage),
-                onError: (e) => {
-                  console.error("理想の体像の読み込みに失敗:", targetUser.idealBodyImage);
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "block";
-                }
-              }),
+              { className: "w-full max-w-md mx-auto" },
               React.createElement(
                 "div",
-                {
-                  className: "hidden text-center p-8 text-gray-500",
-                  style: { display: "none" }
-                },
-                "画像の読み込みに失敗しました"
+                { className: "relative" },
+                React.createElement("img", {
+                  src: targetUser.idealBodyImage,
+                  alt: "理想の体像",
+                  className: "w-full h-64 sm:h-80 md:h-96 object-cover rounded-2xl shadow-lg cursor-pointer",
+                  onClick: () => onImageClick(targetUser.idealBodyImage),
+                  onError: (e) => {
+                    console.error("理想の体像の読み込みに失敗:", targetUser.idealBodyImage);
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "block";
+                  }
+                }),
+                React.createElement(
+                  "div",
+                  {
+                    className: "hidden text-center p-8 text-gray-500",
+                    style: { display: "none" }
+                  },
+                  "画像の読み込みに失敗しました"
+                )
               ),
-              // 削除ボタン（自分のプロフィールの場合のみ）
-              isOwnProfile && onIdealBodyDelete && React.createElement(
-                "button",
-                {
-                  onClick: onIdealBodyDelete,
-                  className: "absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 shadow-lg transition-colors"
-                },
-                React.createElement("span", { className: "text-sm" }, "×")
+              // アクションボタン（自分のプロフィールの場合のみ）
+              isOwnProfile && React.createElement(
+                "div",
+                { className: "flex justify-center space-x-2 mt-3" },
+                // 更新ボタン
+                onIdealBodyUpload && React.createElement(
+                  React.Fragment,
+                  null,
+                  React.createElement("input", {
+                    type: "file",
+                    accept: "image/*",
+                    onChange: (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        onIdealBodyUpload(file);
+                      }
+                      e.target.value = "";
+                    },
+                    style: { display: "none" },
+                    id: "ideal-body-update"
+                  }),
+                  React.createElement(
+                    "label",
+                    {
+                      htmlFor: "ideal-body-update",
+                      className: "inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 cursor-pointer transition-colors"
+                    },
+                    React.createElement("svg", {
+                      className: "w-3 h-3 mr-1",
+                      fill: "none",
+                      stroke: "currentColor",
+                      viewBox: "0 0 24 24"
+                    },
+                      React.createElement("path", {
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                        strokeWidth: 2,
+                        d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      })
+                    ),
+                    "更新"
+                  )
+                ),
+                // 削除ボタン
+                onIdealBodyDelete && React.createElement(
+                  "button",
+                  {
+                    onClick: onIdealBodyDelete,
+                    className: "inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-full hover:bg-red-100 transition-colors"
+                  },
+                  React.createElement("svg", {
+                    className: "w-3 h-3 mr-1",
+                    fill: "none",
+                    stroke: "currentColor",
+                    viewBox: "0 0 24 24"
+                  },
+                    React.createElement("path", {
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                      strokeWidth: 2,
+                      d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    })
+                  ),
+                  "削除"
+                )
               )
             )
           : isOwnProfile && onIdealBodyUpload
@@ -526,7 +604,19 @@ const ProfilePage = ({
                     htmlFor: "ideal-body-upload",
                     className: "cursor-pointer flex flex-col items-center space-y-3"
                   },
-                  React.createElement("span", { className: "text-4xl" }, "📷"),
+                  React.createElement("svg", {
+                    className: "w-12 h-12 text-purple-500",
+                    fill: "none",
+                    stroke: "currentColor",
+                    viewBox: "0 0 24 24"
+                  },
+                    React.createElement("path", {
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                      strokeWidth: 1.5,
+                      d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    })
+                  ),
                   React.createElement(
                     "p",
                     { className: "text-purple-600 font-medium" },
@@ -542,7 +632,6 @@ const ProfilePage = ({
             : React.createElement(
                 "div",
                 { className: "text-center p-8 text-gray-500" },
-                React.createElement("span", { className: "text-4xl block mb-3" }, "💪"),
                 React.createElement(
                   "p",
                   {},

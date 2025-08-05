@@ -3,7 +3,7 @@
   - Cloudinary Cloud Name: dqo3bdgwi
   - Cloudinary API Key: 設定済み
   - Cloudinary API Secret: 設定済み
-📸 画像ストレージモード: Cloudinary
+画像ストレージモード: Cloudinary
 
 =====================================
 FitShare バックエンドサーバー
@@ -15,27 +15,3 @@ URL: http://localhost:3001
 =====================================
   
 MongoDBに接続しました
-アバターアップロード開始
-req.file: {
-  fieldname: 'avatar',
-  originalname: '1753329266567-118974451.jpeg',
-  encoding: '7bit',
-  mimetype: 'image/jpeg',
-  path: 'https://res.cloudinary.com/dqo3bdgwi/image/upload/v1754308912/fitshare/1754308912063-117097925-1753329266567-118974451.jpeg.jpg',
-  size: 7018,
-  filename: 'fitshare/1754308912063-117097925-1753329266567-118974451.jpeg'
-}
-req.user: {
-  userId: '68909ec97b3bfcc3b88cfea4',
-  email: 'test@example.com',
-  iat: 1754308334,
-  exp: 1754913134
-}
-ファイル情報: {
-  originalname: '1753329266567-118974451.jpeg',
-  mimetype: 'image/jpeg',
-  size: 7018,
-  filename: 'fitshare/1754308912063-117097925-1753329266567-118974451.jpeg'
-}
-新しいアバターURL: https://res.cloudinary.com/dqo3bdgwi/image/upload/v1754308912/fitshare/1754308912063-117097925-1753329266567-118974451.jpeg.jpg
-アバター更新成功

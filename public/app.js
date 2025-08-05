@@ -286,7 +286,7 @@ const FitShareApp = () => {
       .filter(e => {
         const exerciseName = e.exercise.trim();
         if (!exerciseName) {
-          console.log('❌ 種目名が空:', e);
+          console.log('種目名が空:', e);
           return false;
         }
         
@@ -303,7 +303,7 @@ const FitShareApp = () => {
           console.log(`  セット詳細: weight=${s.weight}, reps=${s.reps}, hasWeight=${hasWeight}, hasReps=${hasReps}`);
           return hasWeight && hasReps;
         });
-        console.log(`💪 ウェイトトレーニング ${exerciseName}:`, e.sets, '有効:', hasValidWeightSet);
+        console.log(`ウェイトトレーニング ${exerciseName}:`, e.sets, '有効:', hasValidWeightSet);
         return hasValidWeightSet;
       })
       .map(e => {
@@ -383,7 +383,7 @@ const FitShareApp = () => {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('❌ API Error:', res.status, errorText);
+        console.error('API Error:', res.status, errorText);
         
         // 認証エラーの場合は再ログインを促す
         if (res.status === 401 || res.status === 403) {
@@ -414,10 +414,10 @@ const FitShareApp = () => {
         
         // 投稿成功を明示的にユーザーに通知
         setTimeout(() => {
-          console.log('🔄 投稿一覧を確認してください。表示されない場合は画面を更新してください。');
+          console.log('投稿一覧を確認してください。表示されない場合は画面を更新してください。');
         }, 1000);
       } catch (parseError) {
-        console.error('⚠️ 投稿レスポンスの解析に失敗:', parseError);
+        console.error('投稿レスポンスの解析に失敗:', parseError);
         console.log('投稿は送信されましたが、レスポンスの確認ができませんでした');
       }
 

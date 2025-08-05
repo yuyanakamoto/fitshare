@@ -185,22 +185,9 @@ const WorkoutForm = ({
               
               // 部位別にグループ化された種目
               window.exercisesByBodyPart && Object.entries(window.exercisesByBodyPart).map(([bodyPart, exerciseList]) => {
-                const bodyPartEmojis = {
-                  "胸": "🫁",
-                  "背中": "🔙", 
-                  "肩": "🤷",
-                  "腕（上腕二頭筋）": "💪",
-                  "腕（上腕三頭筋）": "🔱",
-                  "脚（大腿四頭筋）": "🦵",
-                  "脚（ハムストリング・臀部）": "🍑",
-                  "脚（ふくらはぎ）": "🦶",
-                  "腹筋・体幹": "🔥",
-                  "有酸素運動": "🏃",
-                  "自重トレーニング": "🤸"
-                };
                 return React.createElement(
                   "optgroup",
-                  { key: bodyPart, label: `${bodyPartEmojis[bodyPart] || "💪"} ${bodyPart}` },
+                  { key: bodyPart, label: bodyPart },
                   exerciseList.map((ex) =>
                     React.createElement(
                       "option",
@@ -219,7 +206,7 @@ const WorkoutForm = ({
                 if (customExercises.length > 0) {
                   return React.createElement(
                     "optgroup",
-                    { key: "custom", label: "🏷️ カスタム種目" },
+                    { key: "custom", label: "カスタム種目" },
                     customExercises.map((ex) =>
                       React.createElement(
                         "option",
@@ -275,7 +262,7 @@ const WorkoutForm = ({
                   React.createElement(
                     "span",
                     { className: "text-sm text-yellow-700" },
-                    `🏷️ カスタム種目: ${exerciseData.exercise}`
+                    `カスタム種目: ${exerciseData.exercise}`
                   ),
                   React.createElement(
                     "button",
@@ -290,7 +277,7 @@ const WorkoutForm = ({
                       },
                       className: "text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
                     },
-                    "🗑️ 削除"
+                    "削除"
                   )
                 )
               ),

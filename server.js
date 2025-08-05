@@ -87,9 +87,9 @@ const useCloudinary = process.env.CLOUDINARY_CLOUD_NAME &&
                      process.env.CLOUDINARY_API_KEY && 
                      process.env.CLOUDINARY_API_SECRET;
 
-console.log('📸 画像ストレージモード:', useCloudinary ? 'Cloudinary' : 'ローカルファイル');
+console.log('画像ストレージモード:', useCloudinary ? 'Cloudinary' : 'ローカルファイル');
 if (!useCloudinary) {
-  console.log('⚠️  Cloudinaryが無効な理由:');
+  console.log('Cloudinaryが無効な理由:');
   if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your_cloud_name') {
     console.log('   - Cloud Nameが未設定またはプレースホルダー');
   }
@@ -371,7 +371,7 @@ async function createSampleData() {
         email: 'sample@fitshare.com',
         password: await bcrypt.hash('sample123', 10),
         username: 'FitShare運営',
-        avatar: '💪'
+        avatar: 'F'
       });
       await sampleUser.save();
       
@@ -387,7 +387,7 @@ async function createSampleData() {
             { weight: 60, reps: 8 },
             { weight: 55, reps: 10 }
           ],
-          comment: 'FitShareへようこそ！セットごとに重量と回数を記録できます💪',
+          comment: 'FitShareへようこそ！セットごとに重量と回数を記録できます',
           workoutDate: new Date(),
           likes: 1,
           likedBy: [sampleUser._id],
@@ -590,12 +590,13 @@ app.get('/api/posts', async (req, res) => {
     
     const posts = await Post.find(query)
       .populate('userId', 'username avatar')
+      .populate('likedBy', 'username avatar')
       .sort({ workoutDate: -1, timestamp: -1 })
       .limit(parseInt(limit))
       .skip(skip)
       .lean();
       
-    console.log(`📊 取得した投稿数: ${posts.length}件`);
+    console.log(`取得した投稿数: ${posts.length}件`);
     
     // 画像URLの相対パス変換と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
@@ -798,7 +799,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), async (req, re
     responsePost.displayTime = calculateDisplayTime(responsePost.timestamp);
     
     // 詳細ログ
-    console.log('📝 新しい投稿を作成:', {
+    console.log('新しい投稿を作成:', {
       id: newPost._id,
       user: newPost.user,
       exercise: newPost.exercises?.[0]?.exercise || newPost.exercise,
@@ -1029,6 +1030,7 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     
     await post.save();
     await post.populate('userId', 'username avatar');
+    await post.populate('likedBy', 'username avatar');
     
     const responsePost = post.toObject();
     responsePost.image = getImagePath(responsePost.image);
@@ -1405,6 +1407,7 @@ io.on('connection', async (socket) => {
     // 初期データ送信（全投稿を送信）
     const posts = await Post.find()
       .populate('userId', 'username avatar')
+      .populate('likedBy', 'username avatar')
       .sort({ workoutDate: -1, timestamp: -1 })
       .lean();
     
@@ -1415,7 +1418,7 @@ io.on('connection', async (socket) => {
       displayTime: calculateDisplayTime(post.timestamp)
     }));
     
-    console.log(`🔄 Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);
+    console.log(`Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);
     socket.emit('allPosts', normalizedPosts);
   } catch (error) {
     console.error('投稿の取得エラー:', error);
