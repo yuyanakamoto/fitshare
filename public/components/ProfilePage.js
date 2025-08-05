@@ -133,8 +133,8 @@ const ProfilePage = ({
 
   // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
   const baseTargetUser = viewingUser || currentUser;
-  // 常にtargetUserDataを優先し、存在しない場合のみbaseTargetUserを使用
-  const targetUser = targetUserData || baseTargetUser;
+  // 自分のプロフィールの場合は常にAPIから取得したデータを優先、他人のプロフィールはviewingUserを使用
+  const targetUser = isOwnProfile ? (targetUserData || baseTargetUser) : (viewingUser || baseTargetUser);
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   
   // 🔍 デバッグ: ユーザーデータの詳細ログ
@@ -261,6 +261,23 @@ const ProfilePage = ({
       refreshUserData();
     }
   }, []);
+
+  // アバター更新イベントのリスナー
+  React.useEffect(() => {
+    const handleAvatarUpdate = (event) => {
+      console.log('🔔 アバター更新イベントを受信:', event.detail);
+      if (event.detail.userId === baseTargetUser?.id) {
+        console.log('✅ 自分のアバターが更新されました、データを強制更新');
+        setTargetUserData(null);
+        refreshUserData();
+      }
+    };
+
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+    };
+  }, [baseTargetUser?.id, refreshUserData]);
   
   // デバッグログ
   React.useEffect(() => {
@@ -528,10 +545,14 @@ const ProfilePage = ({
                   
                   onAvatarUpload(file).then(() => {
                     console.log('✅ アバターアップロード完了、データを更新します');
-                    // アバター更新後にデータを更新
+                    // アバター更新後に即座にデータを更新（複数回実行で確実に）
+                    refreshUserData();
                     setTimeout(() => {
                       refreshUserData();
-                    }, 1000); // 1秒待ってからデータ更新
+                    }, 500);
+                    setTimeout(() => {
+                      refreshUserData();
+                    }, 1500);
                   }).catch(error => {
                     console.error('❌ Avatar upload error:', error);
                   });
@@ -546,7 +567,8 @@ const ProfilePage = ({
               "label",
               {
                 htmlFor: "avatar-upload",
-                className: "w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 shadow-lg transition-colors"
+                className: "w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 shadow-lg transition-colors",
+                title: "アバター画像を変更"
               },
               React.createElement("svg", {
                 className: "w-4 h-4",
@@ -577,6 +599,12 @@ const ProfilePage = ({
             "h1",
             { className: "text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent" },
             targetUser.username
+          ),
+          // アバター変更の説明（自分のプロフィールの場合のみ）
+          isOwnProfile && onAvatarUpload && React.createElement(
+            "p",
+            { className: "text-xs text-gray-500 mb-2" },
+            "プロフィール画像をクリックして変更"
           ),
           React.createElement(
             "p",

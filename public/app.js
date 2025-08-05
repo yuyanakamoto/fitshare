@@ -761,6 +761,14 @@ const FitShareApp = () => {
       setCurrentUser(updatedUser);
       localStorage.setItem("fitShareUser", JSON.stringify(updatedUser));
       
+      // カスタムイベントを発火してProfilePageコンポーネントに更新を通知
+      window.dispatchEvent(new CustomEvent('avatarUpdated', { 
+        detail: { 
+          userId: updatedUser.id, 
+          avatar: data.avatar 
+        } 
+      }));
+      
       alert("アバターが更新されました！");
     } catch (error) {
       console.error("アバターのアップロードに失敗しました:", error);
