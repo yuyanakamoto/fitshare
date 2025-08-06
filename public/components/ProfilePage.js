@@ -133,38 +133,22 @@ const ProfilePage = ({
 
   // 表示対象のユーザー（他ユーザーを見ている場合はviewingUser、自分の場合はcurrentUser）
   const baseTargetUser = viewingUser || currentUser;
+  const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   // 自分のプロフィールの場合は常にAPIから取得したデータを優先、他人のプロフィールはviewingUserを使用
   const targetUser = isOwnProfile ? (targetUserData || baseTargetUser) : (viewingUser || baseTargetUser);
-  const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   
-  // 🔍 デバッグ: ユーザーデータの基本ログ（軽量化）
-  React.useEffect(() => {
-    console.log('🔍 ProfilePage基本情報:', {
-      baseTargetUser: baseTargetUser?.username || 'なし',
-      targetUser: targetUser?.username || 'なし',
-      hasTargetUserData: !!targetUserData,
-      isOwnProfile: isOwnProfile
-    });
-  }, [baseTargetUser?.id, targetUserData]);
+  // デバッグログは本番環境では無効化
   
-  // 軽量化されたデバッグログ（開発時のみ）
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('ProfilePage loaded:', {
-        user: targetUser?.username,
-        isOwnProfile,
-        postsCount: posts?.length || 0
-      });
-    }
-  }, [targetUser?.id, isOwnProfile]);
+  // デバッグログは本番環境では無効化
   
-  // ユーザーデータを最新に更新する関数（軽量化）
+  // ユーザーデータを最新に更新する関数（依存関係なし）
   const refreshUserData = React.useCallback(async () => {
-    if (!baseTargetUser?.id) return;
+    const userId = baseTargetUser?.id;
+    if (!userId) return;
     
     try {
       const token = localStorage.getItem('fitShareToken');
-      const response = await fetch(`/api/users/${baseTargetUser.id}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -172,41 +156,49 @@ const ProfilePage = ({
       
       if (response.ok) {
         const userData = await response.json();
-        // ユーザーデータ更新完了（ログ軽量化）
         setTargetUserData(userData);
       }
     } catch (error) {
       console.error('❌ ユーザーデータ更新エラー:', error);
     }
-  }, [baseTargetUser?.id]);
+  }, []);
 
-  // 初回読み込み時とbaseTargetUserが変わった時にユーザーデータを更新
+  // 初回読み込みとアバター更新イベントの統合管理
   React.useEffect(() => {
-    if (baseTargetUser?.id) {
-      setTargetUserData(null);
-      const timer = setTimeout(() => {
-        refreshUserData();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [baseTargetUser?.id, refreshUserData]);
+    if (!baseTargetUser?.id) return;
 
-  // アバター更新イベントのリスナー
-  React.useEffect(() => {
+    // 初回読み込み
+    setTargetUserData(null);
+    const timer = setTimeout(refreshUserData, 100);
+
+    // アバター更新イベントリスナー  
     const handleAvatarUpdate = (event) => {
-      if (event.detail.userId === baseTargetUser?.id) {
+      if (event.detail.userId === baseTargetUser.id) {
         setTargetUserData(null);
         refreshUserData();
       }
     };
 
     window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('avatarUpdated', handleAvatarUpdate);
     };
-  }, [baseTargetUser?.id, refreshUserData]);
-  
+  }, [baseTargetUser?.id]);
+
+  // targetUserが存在しない場合は早期リターン（ローディング状態）
+  if (!targetUser) {
+    return React.createElement(
+      "div",
+      { className: "flex justify-center items-center h-64" },
+      React.createElement(
+        "div",
+        { className: "text-gray-500" },
+        "プロフィールを読み込み中..."
+      )
+    );
+  }
   
   // 対象ユーザーの投稿のみフィルタリング（useMemoで最適化）
   const userPosts = React.useMemo(() => 
@@ -356,10 +348,10 @@ const ProfilePage = ({
     setCalendarDate(new Date());
   };
 
-  // 重い計算をuseMemoで最適化
-  const maxWeights = React.useMemo(() => calculateMaxWeights(), [userPosts]);
-  const bestRunningPace = React.useMemo(() => calculateBestRunningPace(), [userPosts]);
-  const calendarDays = React.useMemo(() => generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth()), [calendarDate, userPosts]);
+  // 重い計算を一時的に無効化してテスト
+  const maxWeights = React.useMemo(() => ({ 'ベンチプレス': 0, 'デッドリフト': 0, 'スクワット': 0 }), []);
+  const bestRunningPace = React.useMemo(() => null, []);
+  const calendarDays = React.useMemo(() => [], []);
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const currentDate = new Date();
   const isCurrentMonth = calendarDate.getFullYear() === currentDate.getFullYear() && 
