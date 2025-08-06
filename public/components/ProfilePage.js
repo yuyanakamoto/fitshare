@@ -137,137 +137,65 @@ const ProfilePage = ({
   const targetUser = isOwnProfile ? (targetUserData || baseTargetUser) : (viewingUser || baseTargetUser);
   const isOwnProfile = !viewingUser || viewingUser.id === currentUser?.id;
   
-  // 🔍 デバッグ: ユーザーデータの詳細ログ
+  // 🔍 デバッグ: ユーザーデータの基本ログ（軽量化）
   React.useEffect(() => {
-    console.group('🔍 ProfilePage: ユーザーデータ詳細デバッグ');
-    console.log('📋 currentUser:', {
-      data: currentUser,
-      avatar: currentUser?.avatar,
-      avatarType: typeof currentUser?.avatar,
-      avatarLength: currentUser?.avatar?.length,
-      isValidAvatar: currentUser?.avatar && currentUser?.avatar.length > 1
+    console.log('🔍 ProfilePage基本情報:', {
+      baseTargetUser: baseTargetUser?.username || 'なし',
+      targetUser: targetUser?.username || 'なし',
+      hasTargetUserData: !!targetUserData,
+      isOwnProfile: isOwnProfile
     });
-    console.log('📋 viewingUser:', {
-      data: viewingUser,
-      avatar: viewingUser?.avatar,
-      avatarType: typeof viewingUser?.avatar,
-      avatarLength: viewingUser?.avatar?.length
-    });
-    console.log('📋 baseTargetUser:', {
-      data: baseTargetUser,
-      avatar: baseTargetUser?.avatar,
-      avatarType: typeof baseTargetUser?.avatar,
-      avatarLength: baseTargetUser?.avatar?.length
-    });
-    console.log('📋 targetUserData (from API):', {
-      data: targetUserData,
-      avatar: targetUserData?.avatar,
-      avatarType: typeof targetUserData?.avatar,
-      avatarLength: targetUserData?.avatar?.length
-    });
-    console.log('📋 targetUser (final):', {
-      data: targetUser,
-      avatar: targetUser?.avatar,
-      avatarType: typeof targetUser?.avatar,
-      avatarLength: targetUser?.avatar?.length,
-      username: targetUser?.username
-    });
-    console.log('📋 localStorage:', {
-      token: localStorage.getItem('fitShareToken') ? '✅ 存在' : '❌ なし',
-      user: JSON.parse(localStorage.getItem('fitShareUser') || 'null')
-    });
-    console.log('📋 その他:', {
-      isOwnProfile,
-      componentMounted: true
-    });
-    console.groupEnd();
-  }, [currentUser, viewingUser, baseTargetUser, targetUserData, targetUser]);
+  }, [baseTargetUser?.id, targetUserData]);
   
-  // ユーザーデータを最新に更新する関数
-  const refreshUserData = React.useCallback(async () => {
-    if (!baseTargetUser?.id) {
-      console.log('🔍 refreshUserData: baseTargetUser.idが存在しないため終了');
-      return;
+  // 軽量化されたデバッグログ（開発時のみ）
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('ProfilePage loaded:', {
+        user: targetUser?.username,
+        isOwnProfile,
+        postsCount: posts?.length || 0
+      });
     }
-    
-    console.group('🔍 refreshUserData: APIリクエスト開始');
-    console.log('📤 リクエスト情報:', {
-      url: `/api/users/${baseTargetUser.id}`,
-      userId: baseTargetUser.id,
-      baseTargetUser: baseTargetUser
-    });
+  }, [targetUser?.id, isOwnProfile]);
+  
+  // ユーザーデータを最新に更新する関数（軽量化）
+  const refreshUserData = React.useCallback(async () => {
+    if (!baseTargetUser?.id) return;
     
     try {
       const token = localStorage.getItem('fitShareToken');
-      console.log('📋 認証トークン:', token ? '✅ 存在' : '❌ なし');
-      
       const response = await fetch(`/api/users/${baseTargetUser.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log('📥 APIレスポンス:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-      
       if (response.ok) {
         const userData = await response.json();
-        console.log('✅ 最新ユーザーデータを取得:', {
-          userId: userData.id,
-          username: userData.username,
-          email: userData.email,
-          avatar: userData.avatar,
-          avatarType: typeof userData.avatar,
-          avatarLength: userData.avatar?.length,
-          hasValidAvatar: userData.avatar && userData.avatar !== userData.username?.charAt(0).toUpperCase(),
-          fullUserData: userData
-        });
-        
-        console.log('🔄 targetUserDataを更新');
+        // ユーザーデータ更新完了（ログ軽量化）
         setTargetUserData(userData);
-      } else {
-        const errorText = await response.text();
-        console.error('❌ APIエラー:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText: errorText
-        });
       }
     } catch (error) {
       console.error('❌ ユーザーデータ更新エラー:', error);
     }
-    
-    console.groupEnd();
   }, [baseTargetUser?.id]);
 
   // 初回読み込み時とbaseTargetUserが変わった時にユーザーデータを更新
   React.useEffect(() => {
     if (baseTargetUser?.id) {
-      console.log('📍 ProfilePage: ユーザーデータを更新開始:', baseTargetUser.id);
-      // 毎回強制的にAPIから最新データを取得
       setTargetUserData(null);
-      refreshUserData();
+      const timer = setTimeout(() => {
+        refreshUserData();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [baseTargetUser?.id]);
-
-  // プロフィールページに戻ってきた時もデータを更新
-  React.useEffect(() => {
-    if (baseTargetUser?.id) {
-      console.log('📍 ProfilePage: マウント時にデータ更新');
-      setTargetUserData(null);
-      refreshUserData();
-    }
-  }, []);
+  }, [baseTargetUser?.id, refreshUserData]);
 
   // アバター更新イベントのリスナー
   React.useEffect(() => {
     const handleAvatarUpdate = (event) => {
-      console.log('🔔 アバター更新イベントを受信:', event.detail);
       if (event.detail.userId === baseTargetUser?.id) {
-        console.log('✅ 自分のアバターが更新されました、データを強制更新');
         setTargetUserData(null);
         refreshUserData();
       }
@@ -279,29 +207,14 @@ const ProfilePage = ({
     };
   }, [baseTargetUser?.id, refreshUserData]);
   
-  // デバッグログ
-  React.useEffect(() => {
-    console.log('📋 ProfilePage 詳細デバッグ:', {
-      currentUser: currentUser,
-      currentUserAvatar: currentUser?.avatar,
-      currentUserAvatarType: typeof currentUser?.avatar,
-      viewingUser: viewingUser,
-      viewingUserAvatar: viewingUser?.avatar,
-      baseTargetUser: baseTargetUser,
-      targetUserData: targetUserData,
-      targetUser: targetUser,
-      targetUserAvatar: targetUser?.avatar,
-      targetUserAvatarType: typeof targetUser?.avatar,
-      isOwnProfile: isOwnProfile,
-      localStorage_user: JSON.parse(localStorage.getItem("fitShareUser") || 'null')
-    });
-  }, [currentUser, viewingUser, baseTargetUser, targetUserData, targetUser]);
   
-  // 対象ユーザーの投稿のみフィルタリング
-  const userPosts = posts.filter(post => {
-    const postUserId = typeof post.userId === 'object' ? post.userId._id : post.userId;
-    return postUserId === targetUser.id || post.user === targetUser.username;
-  });
+  // 対象ユーザーの投稿のみフィルタリング（useMemoで最適化）
+  const userPosts = React.useMemo(() => 
+    posts.filter(post => {
+      const postUserId = typeof post.userId === 'object' ? post.userId._id : post.userId;
+      return postUserId === targetUser.id || post.user === targetUser.username;
+    }), [posts, targetUser.id, targetUser.username]
+  );
 
   // BIG3の最大重量を計算
   const calculateMaxWeights = () => {
@@ -443,9 +356,10 @@ const ProfilePage = ({
     setCalendarDate(new Date());
   };
 
-  const maxWeights = calculateMaxWeights();
-  const bestRunningPace = calculateBestRunningPace();
-  const calendarDays = generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth());
+  // 重い計算をuseMemoで最適化
+  const maxWeights = React.useMemo(() => calculateMaxWeights(), [userPosts]);
+  const bestRunningPace = React.useMemo(() => calculateBestRunningPace(), [userPosts]);
+  const calendarDays = React.useMemo(() => generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth()), [calendarDate, userPosts]);
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const currentDate = new Date();
   const isCurrentMonth = calendarDate.getFullYear() === currentDate.getFullYear() && 
@@ -472,36 +386,7 @@ const ProfilePage = ({
             const firstChar = displayUser ? displayUser.charAt(0).toUpperCase() : '?';
             const shouldShowImage = displayAvatar && displayAvatar !== firstChar;
             
-            console.group('🖼️ プロフィールアバター表示判定');
-            console.log('📋 基本情報:', {
-              targetUser: targetUser,
-              displayAvatar: displayAvatar,
-              displayUser: displayUser,
-              firstChar: firstChar
-            });
-            console.log('📋 判定条件:', {
-              'avatar存在': !!displayAvatar,
-              'avatarType': typeof displayAvatar,
-              'avatarLength': displayAvatar ? displayAvatar.length : 0,
-              'avatar値': displayAvatar,
-              'firstChar': firstChar,
-              'avatar !== firstChar': displayAvatar !== firstChar,
-              '最終判定(shouldShowImage)': shouldShowImage
-            });
-            console.log('📋 条件詳細:', {
-              'displayAvatar && displayAvatar !== firstChar': shouldShowImage,
-              '条件分解': {
-                'displayAvatar存在': !!displayAvatar,
-                'displayAvatar値が文字と異なる': displayAvatar !== firstChar
-              }
-            });
-            
-            if (shouldShowImage) {
-              console.log('✅ 画像を表示します:', displayAvatar);
-            } else {
-              console.log('❌ 文字を表示します:', firstChar);
-            }
-            console.groupEnd();
+            // アバター表示判定のデバッグログは削除（パフォーマンス向上）
             
             // PostListと同じ条件：avatar値があり、かつユーザー名の最初の文字と異なる場合は画像表示
             return shouldShowImage
@@ -510,17 +395,10 @@ const ProfilePage = ({
                   alt: `${displayUser}のアバター`,
                   className: "w-full h-full object-cover",
                   onLoad: () => {
-                    console.log('✅ プロフィールアバター読み込み成功:', {
-                      url: displayAvatar,
-                      element: 'img'
-                    });
+                    // アバター読み込み成功（ログ軽量化）
                   },
                   onError: (e) => {
-                    console.error('❌ プロフィールアバター読み込み失敗:', {
-                      url: displayAvatar,
-                      error: e,
-                      fallbackChar: firstChar
-                    });
+                    console.error('プロフィールアバター読み込み失敗:', displayAvatar);
                     e.target.style.display = 'none';
                     e.target.parentElement.textContent = firstChar;
                   }
@@ -537,22 +415,13 @@ const ProfilePage = ({
               onChange: (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                  console.log('🔍 アバターファイル選択:', {
-                    fileName: file.name,
-                    fileSize: file.size,
-                    fileType: file.type
-                  });
+                  // ファイル選択のログは削除（パフォーマンス向上）
                   
                   onAvatarUpload(file).then(() => {
-                    console.log('✅ アバターアップロード完了、データを更新します');
-                    // アバター更新後に即座にデータを更新（複数回実行で確実に）
-                    refreshUserData();
+                    // アバター更新後にデータを更新（1回のみ）
                     setTimeout(() => {
                       refreshUserData();
                     }, 500);
-                    setTimeout(() => {
-                      refreshUserData();
-                    }, 1500);
                   }).catch(error => {
                     console.error('❌ Avatar upload error:', error);
                   });
@@ -1149,16 +1018,10 @@ const ProfilePage = ({
                     className: "rounded-lg max-h-48 w-full object-cover cursor-pointer mt-2",
                     onClick: () => onImageClick(post.image),
                     onLoad: (e) => {
-                      console.log("プロフィール画像読み込み成功:", {
-                        url: post.image,
-                        isCloudinary: post.image?.startsWith('https://res.cloudinary.com')
-                      });
+                      // 画像読み込み成功（ログ軽量化）
                     },
                     onError: (e) => {
-                      console.error("プロフィール画像の読み込みに失敗しました:", {
-                        url: post.image,
-                        isCloudinary: post.image?.startsWith('https://res.cloudinary.com')
-                      });
+                      console.error("画像読み込み失敗:", post.image);
                     }
                   }),
                 
