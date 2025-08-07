@@ -208,84 +208,9 @@ const ProfilePage = ({
     }), [posts, targetUser.id, targetUser.username]
   );
 
-  // BIG3の最大重量を計算
-  const calculateMaxWeights = () => {
-    const big3 = {
-      'ベンチプレス': 0,
-      'デッドリフト': 0,
-      'スクワット': 0
-    };
+  // 古い関数定義は削除（useMemo版を使用）
 
-    userPosts.forEach(post => {
-      if (post.exercises && Array.isArray(post.exercises)) {
-        post.exercises.forEach(exercise => {
-          if (big3.hasOwnProperty(exercise.exercise)) {
-            exercise.sets.forEach(set => {
-              if (set.weight > big3[exercise.exercise]) {
-                big3[exercise.exercise] = set.weight;
-              }
-            });
-          }
-        });
-      }
-      // 旧形式との互換性
-      else if (post.exercise && big3.hasOwnProperty(post.exercise)) {
-        if (post.sets && Array.isArray(post.sets)) {
-          post.sets.forEach(set => {
-            if (set.weight > big3[post.exercise]) {
-              big3[post.exercise] = set.weight;
-            }
-          });
-        }
-      }
-    });
-
-    return big3;
-  };
-
-  // ランニング最速ペースを計算
-  const calculateBestRunningPace = () => {
-    let bestPace = Infinity; // 最速ペース（数値が小さいほど速い）
-    let bestRecord = null;
-
-    userPosts.forEach(post => {
-      if (post.exercises && Array.isArray(post.exercises)) {
-        post.exercises.forEach(exercise => {
-          if (exercise.exercise === 'ランニング' && exercise.sets) {
-            exercise.sets.forEach(set => {
-              if (set.distance && set.time) {
-                const distance = parseFloat(set.distance);
-                const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
-                const pace = window.calculatePace ? window.calculatePace(distance, timeMinutes) : Infinity;
-                
-                if (pace < bestPace && pace > 0) {
-                  bestPace = pace;
-                  bestRecord = { distance, time: set.time, pace };
-                }
-              }
-            });
-          }
-        });
-      }
-      // 旧形式との互換性
-      else if (post.exercise === 'ランニング' && post.sets) {
-        post.sets.forEach(set => {
-          if (set.distance && set.time) {
-            const distance = parseFloat(set.distance);
-            const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
-            const pace = window.calculatePace ? window.calculatePace(distance, timeMinutes) : Infinity;
-            
-            if (pace < bestPace && pace > 0) {
-              bestPace = pace;
-              bestRecord = { distance, time: set.time, pace };
-            }
-          }
-        });
-      }
-    });
-
-    return bestRecord;
-  };
+  // 古いランニング関数も削除（useMemo版を使用）
 
   // トレーニング日のカレンダーデータを作成
   const getWorkoutDates = () => {
@@ -348,10 +273,101 @@ const ProfilePage = ({
     setCalendarDate(new Date());
   };
 
-  // 重い計算を一時的に無効化してテスト
-  const maxWeights = React.useMemo(() => ({ 'ベンチプレス': 0, 'デッドリフト': 0, 'スクワット': 0 }), []);
-  const bestRunningPace = React.useMemo(() => null, []);
-  const calendarDays = React.useMemo(() => [], []);
+  // BIG3の最大重量を計算
+  const maxWeights = React.useMemo(() => {
+    const big3 = {
+      'ベンチプレス': 0,
+      'デッドリフト': 0,
+      'スクワット': 0
+    };
+
+    if (!userPosts || userPosts.length === 0) {
+      return big3;
+    }
+
+    try {
+      userPosts.forEach((post) => {
+        // 新形式のチェック
+        if (post.exercises && Array.isArray(post.exercises)) {
+          post.exercises.forEach((exercise) => {
+            if (big3.hasOwnProperty(exercise.exercise) && exercise.sets && Array.isArray(exercise.sets)) {
+              exercise.sets.forEach((set) => {
+                const weight = parseFloat(set.weight) || 0;
+                if (weight > big3[exercise.exercise]) {
+                  big3[exercise.exercise] = weight;
+                }
+              });
+            }
+          });
+        }
+        // 旧形式のチェック
+        else if (post.exercise && big3.hasOwnProperty(post.exercise) && post.sets && Array.isArray(post.sets)) {
+          post.sets.forEach((set) => {
+            const weight = parseFloat(set.weight) || 0;
+            if (weight > big3[post.exercise]) {
+              big3[post.exercise] = weight;
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('BIG3計算エラー:', error);
+    }
+
+    return big3;
+  }, [userPosts]);
+
+  // ランニング最速ペースを計算（軽量化版）
+  const bestRunningPace = React.useMemo(() => {
+    if (!userPosts || userPosts.length === 0) return null;
+    
+    let bestPace = Infinity;
+    let bestRecord = null;
+
+    try {
+      userPosts.forEach(post => {
+        if (post.exercises && Array.isArray(post.exercises)) {
+          post.exercises.forEach(exercise => {
+            if (exercise.exercise === 'ランニング' && exercise.sets && Array.isArray(exercise.sets)) {
+              exercise.sets.forEach(set => {
+                if (set.distance && set.time) {
+                  const distance = parseFloat(set.distance);
+                  const timeMinutes = window.timeStringToMinutes ? window.timeStringToMinutes(set.time) : 0;
+                  
+                  if (distance > 0 && timeMinutes > 0) {
+                    const pace = timeMinutes / distance; // 分/km
+                    if (pace < bestPace) {
+                      bestPace = pace;
+                      bestRecord = {
+                        exercise: exercise.exercise,
+                        distance: distance,
+                        time: set.time,
+                        pace: pace
+                      };
+                    }
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('ランニングペース計算エラー:', error);
+    }
+
+    return bestRecord;
+  }, [userPosts]);
+
+  // カレンダー生成（軽量化版）
+  const calendarDays = React.useMemo(() => {
+    try {
+      return generateCalendar(calendarDate.getFullYear(), calendarDate.getMonth());
+    } catch (error) {
+      console.error('カレンダー生成エラー:', error);
+      return [];
+    }
+  }, [calendarDate, userPosts]);
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const currentDate = new Date();
   const isCurrentMonth = calendarDate.getFullYear() === currentDate.getFullYear() && 
