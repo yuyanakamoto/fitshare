@@ -31,6 +31,10 @@ const ProfilePage = ({
   });
   const [showCustomInput, setShowCustomInput] = React.useState([false]);
   
+  // フォロー機能の状態管理
+  const [isFollowing, setIsFollowing] = React.useState(false);
+  const [followLoading, setFollowLoading] = React.useState(false);
+  
   // 時刻表示関数（コンポーネント内で直接定義）
   const formatTimestamp = (timestamp) => {
     try {
@@ -141,6 +145,59 @@ const ProfilePage = ({
   
   // デバッグログは本番環境では無効化
   
+  // フォロー状態を取得する関数
+  const fetchFollowStatus = React.useCallback(async () => {
+    if (!baseTargetUser?.id || isOwnProfile) return;
+    
+    try {
+      const token = localStorage.getItem('fitShareToken');
+      const response = await fetch(`/api/user/${baseTargetUser.id}/follow-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(data.isFollowing);
+      }
+    } catch (error) {
+      console.error('フォロー状態取得エラー:', error);
+    }
+  }, [baseTargetUser?.id, isOwnProfile]);
+
+  // フォロー/フォロー解除の処理
+  const handleFollowToggle = async () => {
+    if (!baseTargetUser?.id || followLoading) return;
+    
+    setFollowLoading(true);
+    try {
+      const token = localStorage.getItem('fitShareToken');
+      const method = isFollowing ? 'DELETE' : 'POST';
+      const response = await fetch(`/api/follow/${baseTargetUser.id}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(data.isFollowing);
+        
+        // ユーザーデータを更新してフォロー数を反映
+        refreshUserData();
+      } else {
+        const errorData = await response.json();
+        console.error('フォロー操作エラー:', errorData.error);
+      }
+    } catch (error) {
+      console.error('フォロー操作エラー:', error);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   // ユーザーデータを最新に更新する関数（依存関係なし）
   const refreshUserData = React.useCallback(async () => {
     const userId = baseTargetUser?.id;
@@ -169,7 +226,10 @@ const ProfilePage = ({
 
     // 初回読み込み
     setTargetUserData(null);
-    const timer = setTimeout(refreshUserData, 100);
+    const timer = setTimeout(() => {
+      refreshUserData();
+      fetchFollowStatus(); // フォロー状態も取得
+    }, 100);
 
     // アバター更新イベントリスナー  
     const handleAvatarUpdate = (event) => {
@@ -185,7 +245,7 @@ const ProfilePage = ({
       clearTimeout(timer);
       window.removeEventListener('avatarUpdated', handleAvatarUpdate);
     };
-  }, [baseTargetUser?.id]);
+  }, [baseTargetUser?.id, refreshUserData, fetchFollowStatus]);
 
   // targetUserが存在しない場合は早期リターン（ローディング状態）
   if (!targetUser) {
@@ -471,11 +531,33 @@ const ProfilePage = ({
         ),
         React.createElement(
           "div",
-          {},
+          { className: "flex-1" },
           React.createElement(
-            "h1",
-            { className: "text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent" },
-            targetUser.username
+            "div",
+            { className: "flex items-center justify-between" },
+            React.createElement(
+              "h1",
+              { className: "text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent" },
+              targetUser.username
+            ),
+            // フォローボタン（他ユーザーの場合のみ表示）
+            !isOwnProfile && React.createElement(
+              "button",
+              {
+                onClick: handleFollowToggle,
+                disabled: followLoading,
+                className: `px-4 py-2 rounded-full font-medium text-sm transition-all duration-300 ${
+                  isFollowing
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                } ${followLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`
+              },
+              followLoading 
+                ? 'Loading...' 
+                : isFollowing 
+                  ? 'フォロー中' 
+                  : 'フォロー'
+            )
           ),
           // アバター変更の説明（自分のプロフィールの場合のみ）
           isOwnProfile && onAvatarUpload && React.createElement(
@@ -484,9 +566,27 @@ const ProfilePage = ({
             "プロフィール画像をクリックして変更"
           ),
           React.createElement(
-            "p",
-            { className: "text-gray-600" },
-            `総投稿数: ${userPosts.length}件`
+            "div",
+            { className: "space-y-1" },
+            React.createElement(
+              "div",
+              { className: "flex flex-wrap items-center gap-4 text-sm text-gray-600" },
+              React.createElement(
+                "span",
+                {},
+                `総投稿数: ${userPosts.length}件`
+              ),
+              React.createElement(
+                "span",
+                {},
+                `フォロー: ${targetUser.followingCount || 0}人`
+              ),
+              React.createElement(
+                "span",
+                {},
+                `フォロワー: ${targetUser.followerCount || 0}人`
+              )
+            )
           ),
           !isOwnProfile &&
             React.createElement(

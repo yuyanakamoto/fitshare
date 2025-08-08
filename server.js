@@ -371,6 +371,79 @@ postSchema.index({ workoutDate: -1, timestamp: -1 });
 
 const Post = mongoose.model('Post', postSchema);
 
+// フォロー関係スキーマ
+const followSchema = new mongoose.Schema({
+  follower: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  following: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+});
+
+// 一意制約（同じユーザーを重複してフォローできないように）
+followSchema.index({ follower: 1, following: 1 }, { unique: true });
+
+const Follow = mongoose.model('Follow', followSchema);
+
+// 既存ユーザーの相互フォロー設定
+async function createMutualFollows() {
+  try {
+    console.log('既存ユーザーの相互フォロー設定を開始...');
+    
+    // 全ユーザーを取得
+    const users = await User.find().select('_id username');
+    console.log(`対象ユーザー数: ${users.length}名`);
+    
+    if (users.length < 2) {
+      console.log('ユーザーが2名未満のためフォロー関係の設定をスキップ');
+      return;
+    }
+    
+    let followCount = 0;
+    const followPromises = [];
+    
+    // 全ユーザー同士を相互フォロー
+    for (let i = 0; i < users.length; i++) {
+      for (let j = 0; j < users.length; j++) {
+        if (i !== j) { // 自分自身はフォローしない
+          const follower = users[i]._id;
+          const following = users[j]._id;
+          
+          // 既存のフォロー関係をチェック
+          const existingFollow = await Follow.findOne({ follower, following });
+          if (!existingFollow) {
+            followPromises.push(
+              new Follow({ follower, following }).save()
+            );
+            followCount++;
+          }
+        }
+      }
+    }
+    
+    if (followPromises.length > 0) {
+      await Promise.all(followPromises);
+      console.log(`相互フォロー設定完了: ${followCount}件の新規フォロー関係を作成`);
+    } else {
+      console.log('既存ユーザーは既に相互フォロー状態です');
+    }
+  } catch (error) {
+    console.error('相互フォロー設定エラー:', error);
+  }
+}
+
 // 初回アクセス時のサンプルデータ作成
 async function createSampleData() {
   try {
@@ -435,10 +508,11 @@ async function createSampleData() {
   }
 }
 
-// MongoDB接続後にサンプルデータを作成
+// MongoDB接続後にサンプルデータと相互フォロー設定を作成
 if (MONGODB_URI) {
-  mongoose.connection.once('open', () => {
-    createSampleData();
+  mongoose.connection.once('open', async () => {
+    await createSampleData();
+    await createMutualFollows(); // 既存ユーザーの相互フォロー設定
   });
 }
 
@@ -590,15 +664,67 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
-// 全投稿を取得（改善版）
-app.get('/api/posts', async (req, res) => {
+// フォロー中ユーザーの投稿のみ取得
+app.get('/api/posts/following', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 1000 } = req.query;
+    const skip = (page - 1) * limit;
+    const currentUserId = req.user.userId;
+    
+    console.log('📖 フォロー中投稿一覧を取得中:', { page, limit, currentUserId });
+    
+    // フォローしているユーザーのIDリストを取得
+    const followingUsers = await Follow.find({ follower: currentUserId }).select('following');
+    const followingIds = followingUsers.map(follow => follow.following);
+    
+    // 自分の投稿も含める
+    followingIds.push(currentUserId);
+    
+    const posts = await Post.find({ userId: { $in: followingIds } })
+      .populate('userId', 'username avatar')
+      .populate({
+        path: 'likedBy',
+        select: 'username avatar',
+        options: { strictPopulate: false }
+      })
+      .sort({ workoutDate: -1, timestamp: -1 })
+      .limit(parseInt(limit))
+      .skip(skip)
+      .lean();
+      
+    console.log(`フォロー中投稿取得: ${posts.length}件 (フォロー対象: ${followingIds.length}名)`);
+    
+    // 画像URLの相対パス変換と日本時間タイムスタンプの追加
+    const normalizedPosts = posts.map(post => ({
+      ...post,
+      image: getImagePath(post.image),
+      displayTime: calculateDisplayTime(post.timestamp),
+      // 無効なlikedByエントリを除外
+      likedBy: (post.likedBy || []).filter(user => user && user._id),
+      // コメントのいいね状態も正規化
+      comments: (post.comments || []).map(comment => ({
+        ...comment,
+        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        likeCount: comment.likeCount || 0
+      }))
+    }));
+    
+    res.json(normalizedPosts);
+  } catch (error) {
+    console.error('フォロー中投稿取得エラー:', error);
+    res.status(500).json({ error: 'データの取得に失敗しました' });
+  }
+});
+
+// 全投稿を取得（管理用・デバッグ用）
+app.get('/api/posts/all', async (req, res) => {
   try {
     const { page = 1, limit = 1000, userId } = req.query;
     const skip = (page - 1) * limit;
     
     const query = userId ? { userId } : {};
     
-    console.log('📖 投稿一覧を取得中:', { page, limit, userId, query });
+    console.log('📖 全投稿一覧を取得中:', { page, limit, userId, query });
     
     const posts = await Post.find(query)
       .populate('userId', 'username avatar')
@@ -1448,7 +1574,184 @@ app.get('/api/users/:userId/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// ユーザー情報の取得
+// フォローAPI
+app.post('/api/follow/:userId', authenticateToken, async (req, res) => {
+  try {
+    const followingId = req.params.userId;
+    const followerId = req.user.userId;
+    
+    // 自分自身をフォローしようとした場合
+    if (followerId === followingId) {
+      return res.status(400).json({ error: '自分自身をフォローすることはできません' });
+    }
+    
+    // フォロー対象のユーザーが存在するかチェック
+    const followingUser = await User.findById(followingId);
+    if (!followingUser) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+    
+    // 既にフォローしているかチェック
+    const existingFollow = await Follow.findOne({ 
+      follower: followerId, 
+      following: followingId 
+    });
+    
+    if (existingFollow) {
+      return res.status(400).json({ error: '既にフォローしています' });
+    }
+    
+    // フォロー関係を作成
+    const newFollow = new Follow({
+      follower: followerId,
+      following: followingId
+    });
+    
+    await newFollow.save();
+    
+    console.log(`フォロー成功: ${req.user.userId} -> ${followingId}`);
+    res.json({ 
+      message: 'フォローしました',
+      isFollowing: true 
+    });
+  } catch (error) {
+    console.error('フォローエラー:', error);
+    res.status(500).json({ error: 'フォローに失敗しました' });
+  }
+});
+
+// フォロー解除API
+app.delete('/api/follow/:userId', authenticateToken, async (req, res) => {
+  try {
+    const followingId = req.params.userId;
+    const followerId = req.user.userId;
+    
+    // フォロー関係を検索して削除
+    const follow = await Follow.findOneAndDelete({ 
+      follower: followerId, 
+      following: followingId 
+    });
+    
+    if (!follow) {
+      return res.status(404).json({ error: 'フォロー関係が見つかりません' });
+    }
+    
+    console.log(`フォロー解除成功: ${req.user.userId} -> ${followingId}`);
+    res.json({ 
+      message: 'フォローを解除しました',
+      isFollowing: false 
+    });
+  } catch (error) {
+    console.error('フォロー解除エラー:', error);
+    res.status(500).json({ error: 'フォロー解除に失敗しました' });
+  }
+});
+
+// フォロー状態確認API
+app.get('/api/user/:userId/follow-status', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    const currentUserId = req.user.userId;
+    
+    // 自分自身の場合
+    if (currentUserId === targetUserId) {
+      return res.json({
+        isFollowing: false,
+        isSelf: true
+      });
+    }
+    
+    // フォロー関係をチェック
+    const followRelation = await Follow.findOne({
+      follower: currentUserId,
+      following: targetUserId
+    });
+    
+    res.json({
+      isFollowing: !!followRelation,
+      isSelf: false
+    });
+  } catch (error) {
+    console.error('フォロー状態確認エラー:', error);
+    res.status(500).json({ error: 'フォロー状態の取得に失敗しました' });
+  }
+});
+
+// フォロワー一覧取得API
+app.get('/api/user/:userId/followers', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    // フォロワー一覧を取得
+    const followers = await Follow.find({ following: userId })
+      .populate('follower', 'username avatar')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip)
+      .lean();
+    
+    const followerList = followers.map(follow => ({
+      id: follow.follower._id,
+      username: follow.follower.username,
+      avatar: follow.follower.avatar,
+      followedAt: follow.createdAt
+    }));
+    
+    // 総フォロワー数
+    const totalCount = await Follow.countDocuments({ following: userId });
+    
+    res.json({
+      followers: followerList,
+      totalCount,
+      currentPage: parseInt(page),
+      hasMore: skip + followers.length < totalCount
+    });
+  } catch (error) {
+    console.error('フォロワー取得エラー:', error);
+    res.status(500).json({ error: 'フォロワーの取得に失敗しました' });
+  }
+});
+
+// フォロー中一覧取得API
+app.get('/api/user/:userId/following', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    // フォロー中一覧を取得
+    const following = await Follow.find({ follower: userId })
+      .populate('following', 'username avatar')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip)
+      .lean();
+    
+    const followingList = following.map(follow => ({
+      id: follow.following._id,
+      username: follow.following.username,
+      avatar: follow.following.avatar,
+      followedAt: follow.createdAt
+    }));
+    
+    // 総フォロー数
+    const totalCount = await Follow.countDocuments({ follower: userId });
+    
+    res.json({
+      following: followingList,
+      totalCount,
+      currentPage: parseInt(page),
+      hasMore: skip + following.length < totalCount
+    });
+  } catch (error) {
+    console.error('フォロー中取得エラー:', error);
+    res.status(500).json({ error: 'フォロー中の取得に失敗しました' });
+  }
+});
+
+// ユーザー情報の取得（フォロー数付き）
 app.get('/api/users/:userId', authenticateToken, async (req, res) => {
   console.group('🔍 ユーザー情報取得API開始');
   console.log('📤 リクエスト情報:', {
@@ -1479,13 +1782,88 @@ app.get('/api/users/:userId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
     
+    // フォロー数とフォロワー数を取得
+    const [followingCount, followerCount] = await Promise.all([
+      Follow.countDocuments({ follower: user._id }),
+      Follow.countDocuments({ following: user._id })
+    ]);
+    
+    // ユーザー情報にフォロー関係の数を追加
+    const userWithCounts = {
+      ...user.toObject(),
+      followingCount,
+      followerCount
+    };
+    
     console.log('✅ ユーザー情報を正常に取得、レスポンス送信');
     console.groupEnd();
-    res.json(user);
+    res.json(userWithCounts);
   } catch (error) {
     console.error('❌ ユーザー情報取得エラー:', error);
     console.groupEnd();
     res.status(500).json({ error: 'ユーザー情報の取得に失敗しました' });
+  }
+});
+
+// ユーザー検索API
+app.get('/api/search/users', authenticateToken, async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    
+    if (!q || q.trim().length === 0) {
+      return res.status(400).json({ error: '検索キーワードが必要です' });
+    }
+    
+    const searchQuery = q.trim();
+    const skip = (page - 1) * limit;
+    
+    // ユーザー名で検索（部分一致、大文字小文字無視）
+    const users = await User.find({
+      username: { $regex: searchQuery, $options: 'i' }
+    })
+    .select('username avatar createdAt')
+    .sort({ username: 1 })
+    .limit(parseInt(limit))
+    .skip(skip)
+    .lean();
+    
+    // 各ユーザーのフォロー状態と数を取得
+    const currentUserId = req.user.userId;
+    const userResults = await Promise.all(
+      users.map(async (user) => {
+        const [followingCount, followerCount, isFollowing] = await Promise.all([
+          Follow.countDocuments({ follower: user._id }),
+          Follow.countDocuments({ following: user._id }),
+          Follow.findOne({ follower: currentUserId, following: user._id })
+        ]);
+        
+        return {
+          id: user._id,
+          username: user.username,
+          avatar: user.avatar,
+          followingCount,
+          followerCount,
+          isFollowing: !!isFollowing,
+          isSelf: user._id.toString() === currentUserId
+        };
+      })
+    );
+    
+    // 総数を取得
+    const totalCount = await User.countDocuments({
+      username: { $regex: searchQuery, $options: 'i' }
+    });
+    
+    res.json({
+      users: userResults,
+      totalCount,
+      currentPage: parseInt(page),
+      hasMore: skip + users.length < totalCount,
+      searchQuery
+    });
+  } catch (error) {
+    console.error('ユーザー検索エラー:', error);
+    res.status(500).json({ error: 'ユーザー検索に失敗しました' });
   }
 });
 
@@ -1546,16 +1924,40 @@ io.on('connection', async (socket) => {
   }
   
   try {
-    // 初期データ送信（全投稿を送信）
-    const posts = await Post.find()
-      .populate('userId', 'username avatar')
-      .populate({
-        path: 'likedBy',
-        select: 'username avatar',
-        options: { strictPopulate: false }
-      })
-      .sort({ workoutDate: -1, timestamp: -1 })
-      .lean();
+    // 初期データ送信（認証済みユーザーの場合はフォロー中投稿、未認証は全投稿）
+    let posts;
+    
+    if (socket.userId) {
+      // 認証済み: フォロー中の投稿のみ
+      const followingUsers = await Follow.find({ follower: socket.userId }).select('following');
+      const followingIds = followingUsers.map(follow => follow.following);
+      followingIds.push(socket.userId); // 自分の投稿も含める
+      
+      posts = await Post.find({ userId: { $in: followingIds } })
+        .populate('userId', 'username avatar')
+        .populate({
+          path: 'likedBy',
+          select: 'username avatar',
+          options: { strictPopulate: false }
+        })
+        .sort({ workoutDate: -1, timestamp: -1 })
+        .lean();
+      
+      console.log(`Socket.io: フォロー中投稿送信 (${posts.length}件) to ${socket.id}`);
+    } else {
+      // 未認証: 全投稿
+      posts = await Post.find()
+        .populate('userId', 'username avatar')
+        .populate({
+          path: 'likedBy',
+          select: 'username avatar',
+          options: { strictPopulate: false }
+        })
+        .sort({ workoutDate: -1, timestamp: -1 })
+        .lean();
+      
+      console.log(`Socket.io: 全投稿送信 (${posts.length}件) to ${socket.id}`);
+    }
     
     // 画像URLの相対パス変換と日本時間タイムスタンプの追加
     const normalizedPosts = posts.map(post => ({
@@ -1572,7 +1974,6 @@ io.on('connection', async (socket) => {
       }))
     }));
     
-    console.log(`Socket.io: allPosts送信 (${normalizedPosts.length}件) to ${socket.id}`);
     socket.emit('allPosts', normalizedPosts);
   } catch (error) {
     console.error('投稿の取得エラー:', error);

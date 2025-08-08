@@ -117,7 +117,11 @@ const FitShareApp = () => {
       );
     });
 
-    fetch(`${SERVER_URL}/api/posts`)
+    // 認証済みの場合はフォロー中投稿、未認証は全投稿
+    const endpoint = authToken ? '/api/posts/following' : '/api/posts/all';
+    const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+    
+    fetch(`${SERVER_URL}${endpoint}`, { headers })
       .then((res) => res.json())
       .then((data) => setPosts(data))
       .catch((err) => console.error("投稿の取得に失敗しました:", err));
@@ -135,7 +139,7 @@ const FitShareApp = () => {
 
       if (token && userStr) {
         try {
-          const response = await fetch(`${SERVER_URL}/api/posts`, {
+          const response = await fetch(`${SERVER_URL}/api/posts/following`, {
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -1168,6 +1172,27 @@ const FitShareApp = () => {
                 React.createElement(
                   "button",
                   {
+                    onClick: () => setCurrentView("search"),
+                    className: "p-2 ml-1 sm:ml-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all duration-200",
+                    title: "ユーザー検索"
+                  },
+                  React.createElement("svg", {
+                    className: "h-5 w-5",
+                    fill: "none",
+                    stroke: "currentColor",
+                    viewBox: "0 0 24 24"
+                  },
+                    React.createElement("path", {
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                      strokeWidth: 2,
+                      d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    })
+                  )
+                ),
+                React.createElement(
+                  "button",
+                  {
                     onClick: handleLogout,
                     className: "p-2 ml-1 sm:ml-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200",
                     title: "ログアウト"
@@ -1218,6 +1243,25 @@ const FitShareApp = () => {
             onIdealBodyUpload: handleIdealBodyUpload,
             onIdealBodyDelete: handleIdealBodyDelete
           })
+        : currentView === "search" && currentUser
+          ? React.createElement(SearchPage, {
+              currentUser,
+              onUserSelect: (user) => {
+                setViewingUser(user);
+                setCurrentView("profile");
+              }
+            })
+          : currentView === "followList" && currentUser
+            ? React.createElement(FollowListPage, {
+                currentUser,
+                targetUserId: viewingUser?.id || currentUser?.id,
+                listType: currentView === "followList" ? "followers" : "following", // これは動的に設定する必要があります
+                onUserSelect: (user) => {
+                  setViewingUser(user);
+                  setCurrentView("profile");
+                },
+                onBack: () => setCurrentView("profile")
+              })
         : React.createElement(
             React.Fragment,
             null,
