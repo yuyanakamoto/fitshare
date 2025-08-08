@@ -704,7 +704,7 @@ app.get('/api/posts/following', authenticateToken, async (req, res) => {
       // コメントのいいね状態も正規化
       comments: (post.comments || []).map(comment => ({
         ...comment,
-        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        isLikedByCurrentUser: comment.likedBy && req.user?.userId && comment.likedBy.includes(req.user.userId),
         likeCount: comment.likeCount || 0
       }))
     }));
@@ -750,7 +750,7 @@ app.get('/api/posts/all', async (req, res) => {
       // コメントのいいね状態も正規化
       comments: (post.comments || []).map(comment => ({
         ...comment,
-        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        isLikedByCurrentUser: comment.likedBy && req.user?.userId && comment.likedBy.includes(req.user.userId),
         likeCount: comment.likeCount || 0
       }))
     }));
@@ -1969,7 +1969,7 @@ io.on('connection', async (socket) => {
       // コメントのいいね状態も正規化
       comments: (post.comments || []).map(comment => ({
         ...comment,
-        isLikedByCurrentUser: comment.likedBy && comment.likedBy.includes(req.user?.id),
+        isLikedByCurrentUser: comment.likedBy && socket.userId && comment.likedBy.includes(socket.userId),
         likeCount: comment.likeCount || 0
       }))
     }));
