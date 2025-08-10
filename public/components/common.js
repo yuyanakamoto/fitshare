@@ -54,11 +54,11 @@ const ExerciseBlock = ({ ex }) => {
   
   let className;
   if (isCardio) {
-    className = "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-1.5 mb-1 border border-green-200";
+    className = "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-1 mb-1 border border-green-200";
   } else if (isBodyweight) {
-    className = "bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-1.5 mb-1 border border-orange-200";
+    className = "bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-1 mb-1 border border-orange-200";
   } else {
-    className = "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-1.5 mb-1";
+    className = "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-1 mb-1";
   }
   
   return React.createElement(
@@ -66,7 +66,7 @@ const ExerciseBlock = ({ ex }) => {
     { className },
     React.createElement(
       "div",
-      { className: "mb-1" },
+      { className: "mb-0.5" },
       React.createElement(
         "span", 
         { 
