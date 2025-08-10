@@ -54,11 +54,11 @@ const ExerciseBlock = ({ ex }) => {
   
   let className;
   if (isCardio) {
-    className = "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-2 mb-2 border border-green-200";
+    className = "bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-1.5 mb-1 border border-green-200";
   } else if (isBodyweight) {
-    className = "bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-2 mb-2 border border-orange-200";
+    className = "bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-1.5 mb-1 border border-orange-200";
   } else {
-    className = "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-2 mb-2";
+    className = "bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-1.5 mb-1";
   }
   
   return React.createElement(
@@ -82,7 +82,7 @@ const ExerciseBlock = ({ ex }) => {
     ex.sets && Array.isArray(ex.sets)
       ? React.createElement(
           "div",
-          { className: "space-y-1" },
+          { className: "space-y-0.5" },
           ex.sets.map((set, index) =>
             React.createElement(
               "div",
