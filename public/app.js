@@ -27,20 +27,56 @@ const FitShareApp = () => {
     username: "",
   });
 
-  // 複数種目対応のフォームデータ
-  const [formData, setFormData] = React.useState({
-    exercises: [
-      {
-        exercise: "",
-        sets: [{ weight: "", reps: "" }],
-      },
-    ],
-    comment: "",
-    workoutDate: new Date().toISOString().split("T")[0],
+  // 複数種目対応のフォームデータ（下書き復元機能付き）
+  const [formData, setFormData] = React.useState(() => {
+    const draft = localStorage.getItem('fitShareDraft');
+    if (draft) {
+      try {
+        const draftData = JSON.parse(draft);
+        // 24時間以内の下書きのみ復元
+        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+          const { timestamp, ...restData } = draftData;
+          return restData;
+        } else {
+          localStorage.removeItem('fitShareDraft');
+        }
+      } catch (error) {
+        console.warn('下書きデータの読み込みに失敗:', error);
+        localStorage.removeItem('fitShareDraft');
+      }
+    }
+    return {
+      exercises: [
+        {
+          exercise: "",
+          sets: [{ weight: "", reps: "" }],
+        },
+      ],
+      comment: "",
+      workoutDate: new Date().toISOString().split("T")[0],
+    };
   });
 
   const [showCustomInput, setShowCustomInput] = React.useState([false]);
   const SERVER_URL = window.location.origin;
+
+  // formData変更時の自動下書き保存
+  React.useEffect(() => {
+    const isDraftEmpty = !formData.exercises[0].exercise && 
+                         !formData.comment && 
+                         formData.exercises.length === 1 && 
+                         formData.exercises[0].sets.length === 1 &&
+                         !formData.exercises[0].sets[0].weight &&
+                         !formData.exercises[0].sets[0].reps;
+    
+    if (!isDraftEmpty) {
+      const draftData = {
+        ...formData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('fitShareDraft', JSON.stringify(draftData));
+    }
+  }, [formData]);
 
   // 種目リスト管理
   const [exercises, setExercises] = React.useState(() => {
@@ -433,6 +469,8 @@ const FitShareApp = () => {
       setSelectedImage(null);
       setShowCustomInput([false]);
       setShowForm(false);
+      // 投稿成功時に下書きデータを削除
+      localStorage.removeItem('fitShareDraft');
     } catch (err) {
       console.error('投稿失敗:', err);
       alert('投稿に失敗しました。');
@@ -546,6 +584,8 @@ const FitShareApp = () => {
       setShowCustomInput([false]);
       setShowForm(false);
       setEditingPost(null);
+      // 投稿編集成功時に下書きデータを削除
+      localStorage.removeItem('fitShareDraft');
     } catch (err) {
       console.error('更新失敗:', err);
       alert('更新に失敗しました。');

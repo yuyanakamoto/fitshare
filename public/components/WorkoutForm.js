@@ -657,18 +657,17 @@ const WorkoutForm = ({
           )
         ),
 
-        // 種目追加ボタン（編集時は非表示）
-        !editingPost &&
-          React.createElement(
-            "button",
-            {
-              onClick: onAddExercise,
-              className:
-                "w-full mt-2 p-3 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 hover:bg-blue-50 flex items-center justify-center space-x-2",
-            },
-            React.createElement(Plus, { className: "h-5 w-5" }),
-            React.createElement("span", {}, "種目を追加")
-          )
+        // 種目追加ボタン
+        React.createElement(
+          "button",
+          {
+            onClick: onAddExercise,
+            className:
+              "w-full mt-2 p-3 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 hover:bg-blue-50 flex items-center justify-center space-x-2",
+          },
+          React.createElement(Plus, { className: "h-5 w-5" }),
+          React.createElement("span", {}, "種目を追加")
+        )
       ),
 
       // 画像アップロード
